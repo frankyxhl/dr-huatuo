@@ -8,6 +8,7 @@ import subprocess
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 from rich import box
 from rich.columns import Columns
@@ -132,15 +133,16 @@ class CodeAnalyzer:
 
         return metrics
 
-    def analyze_project(self, path: str, exclude: list = None) -> ProjectReport:
+    def analyze_project(
+        self, path: str | Path, exclude: Optional[list[str]] = None
+    ) -> ProjectReport:
         """Analyze an entire project."""
-        path = Path(path)
+        resolved = Path(path)
         report = ProjectReport(
-            project_path=str(path),
+            project_path=str(resolved),
             scan_time=datetime.now().isoformat(),
         )
 
-        # Collect Python files
         exclude = exclude or [
             ".venv",
             "venv",
@@ -150,62 +152,82 @@ class CodeAnalyzer:
             "build",
             "dist",
         ]
-        py_files = []
-        for p in path.rglob("*.py"):
-            if not any(ex in p.parts for ex in exclude):
-                py_files.append(p)
-
+        py_files = self._collect_python_files(resolved, exclude)
         report.total_files = len(py_files)
 
-        # Analyze each file
         for py_file in py_files:
             metrics = self.analyze_file(py_file)
             report.files.append(metrics)
             report.total_lines += metrics.line_count
             report.total_functions += metrics.func_count
 
-        # Aggregate statistics
-        if report.files:
-            report.avg_score = sum(f.score for f in report.files) / len(report.files)
-            report.avg_complexity = (
-                sum(f.avg_complexity for f in report.files) / len(report.files)
-                if report.files
-                else 0
-            )
-            report.max_complexity = max(f.max_complexity for f in report.files)
-            report.total_violations = sum(f.ruff_violations for f in report.files)
-            report.total_type_errors = sum(f.mypy_errors for f in report.files)
-            report.total_security_issues = sum(
-                f.bandit_high + f.bandit_medium for f in report.files
-            )
-
-            # Grade distribution
-            for f in report.files:
-                grade = f.grade[0]  # First character
-                report.grade_distribution[grade] = (
-                    report.grade_distribution.get(grade, 0) + 1
-                )
-
-            # Collect hotspots
-            all_complexity = []
-            all_security = []
-            all_type = []
-            for f in report.files:
-                for spot in f.complexity_hotspots:
-                    all_complexity.append({**spot, "file": f.file_path})
-                for issue in f.bandit_issues:
-                    all_security.append({**issue, "file": f.file_path})
-                for issue in f.mypy_issues:
-                    all_type.append({**issue, "file": f.file_path})
-
-            report.complexity_hotspots = sorted(
-                all_complexity,
-                key=lambda x: -x.get("complexity", 0),
-            )[:10]
-            report.security_hotspots = all_security[:10]
-            report.type_hotspots = all_type[:10]
-
+        self._aggregate_report(report)
         return report
+
+    @staticmethod
+    def _collect_python_files(path: Path, exclude: list[str]) -> list[Path]:
+        """Collect Python files under *path*, excluding directories in *exclude*.
+
+        Returns a sorted list (lexicographic) for deterministic ordering.
+        """
+        py_files = [
+            p for p in path.rglob("*.py") if not any(ex in p.parts for ex in exclude)
+        ]
+        py_files.sort()
+        return py_files
+
+    @staticmethod
+    def _aggregate_report(report: ProjectReport) -> None:
+        """Compute all summary statistics on *report* in-place."""
+        if not report.files:
+            return
+
+        n = len(report.files)
+        report.avg_score = sum(f.score for f in report.files) / n
+        report.avg_complexity = sum(f.avg_complexity for f in report.files) / n
+        report.max_complexity = max(f.max_complexity for f in report.files)
+        report.total_violations = sum(f.ruff_violations for f in report.files)
+        report.total_type_errors = sum(f.mypy_errors for f in report.files)
+        report.total_security_issues = sum(
+            f.bandit_high + f.bandit_medium for f in report.files
+        )
+
+        # Grade distribution (clear first for idempotency)
+        report.grade_distribution = {}
+        for f in report.files:
+            grade = f.grade[0]  # First character
+            report.grade_distribution[grade] = (
+                report.grade_distribution.get(grade, 0) + 1
+            )
+
+        # Collect hotspots
+        CodeAnalyzer._collect_hotspots(report)
+
+    @staticmethod
+    def _collect_hotspots(report: ProjectReport) -> None:
+        """Collect and truncate hotspot lists on *report*."""
+        all_complexity = [
+            {**spot, "file": f.file_path}
+            for f in report.files
+            for spot in f.complexity_hotspots
+        ]
+        all_security = [
+            {**issue, "file": f.file_path}
+            for f in report.files
+            for issue in f.bandit_issues
+        ]
+        all_type = [
+            {**issue, "file": f.file_path}
+            for f in report.files
+            for issue in f.mypy_issues
+        ]
+
+        report.complexity_hotspots = sorted(
+            all_complexity,
+            key=lambda x: -x.get("complexity", 0),
+        )[:10]
+        report.security_hotspots = all_security[:10]
+        report.type_hotspots = all_type[:10]
 
     def _run_ruff(self, path: Path) -> list:
         try:
@@ -474,7 +496,7 @@ class CodeAnalyzer:
 class ReportRenderer:
     """Report renderer."""
 
-    def __init__(self, console: Console = None):
+    def __init__(self, console: Optional[Console] = None):
         self.console = console or Console()
 
     def render_terminal(self, report: ProjectReport):
@@ -894,42 +916,22 @@ class ReportRenderer:
 
         return "\n".join(lines)
 
-    def render_html(self, report: ProjectReport) -> str:
-        """HTML output - full web report with charts, Light/Dark mode."""
+    # ------------------------------------------------------------------
+    # Data-preparation helpers for render_html
+    # ------------------------------------------------------------------
 
-        # Prepare chart data
-        grade_labels = ["A", "B", "C", "D", "F"]
-        grade_values = [report.grade_distribution.get(g, 0) for g in grade_labels]
-        grade_colors = [
-            "#22c55e",
-            "#84cc16",
-            "#eab308",
-            "#f97316",
-            "#ef4444",
-        ]
+    @staticmethod
+    def _prepare_grade_chart_data(report: ProjectReport) -> dict:
+        """Return grade chart data: {labels, values, colors}."""
+        labels = ["A", "B", "C", "D", "F"]
+        values = [report.grade_distribution.get(g, 0) for g in labels]
+        colors = ["#22c55e", "#84cc16", "#eab308", "#f97316", "#ef4444"]
+        return {"labels": labels, "values": values, "colors": colors}
 
-        # File score distribution (for histogram)
-        score_ranges = {
-            "90-100": 0,
-            "80-89": 0,
-            "70-79": 0,
-            "60-69": 0,
-            "0-59": 0,
-        }
-        for f in report.files:
-            if f.score >= 90:
-                score_ranges["90-100"] += 1
-            elif f.score >= 80:
-                score_ranges["80-89"] += 1
-            elif f.score >= 70:
-                score_ranges["70-79"] += 1
-            elif f.score >= 60:
-                score_ranges["60-69"] += 1
-            else:
-                score_ranges["0-59"] += 1
-
-        # Complexity distribution
-        complexity_ranges = {
+    @staticmethod
+    def _prepare_complexity_ranges(report: ProjectReport) -> dict:
+        """Return complexity distribution counts."""
+        ranges: dict[str, int] = {
             "1-5": 0,
             "6-10": 0,
             "11-20": 0,
@@ -939,18 +941,21 @@ class ReportRenderer:
         for f in report.files:
             cc = f.max_complexity
             if cc <= 5:
-                complexity_ranges["1-5"] += 1
+                ranges["1-5"] += 1
             elif cc <= 10:
-                complexity_ranges["6-10"] += 1
+                ranges["6-10"] += 1
             elif cc <= 20:
-                complexity_ranges["11-20"] += 1
+                ranges["11-20"] += 1
             elif cc <= 50:
-                complexity_ranges["21-50"] += 1
+                ranges["21-50"] += 1
             else:
-                complexity_ranges["50+"] += 1
+                ranges["50+"] += 1
+        return ranges
 
-        # Generate suggested actions
-        actions = []
+    @staticmethod
+    def _prepare_actions(report: ProjectReport) -> list[dict]:
+        """Return suggested action items with priority and text."""
+        actions: list[dict] = []
         if report.max_complexity > 20:
             actions.append(
                 {
@@ -966,14 +971,14 @@ class ReportRenderer:
             actions.append(
                 {
                     "priority": "high",
-                    "text": (f"Fix {report.total_security_issues} security issues"),
+                    "text": f"Fix {report.total_security_issues} security issues",
                 }
             )
         if report.total_type_errors > 5:
             actions.append(
                 {
                     "priority": "medium",
-                    "text": (f"Fix {report.total_type_errors} type errors"),
+                    "text": f"Fix {report.total_type_errors} type errors",
                 }
             )
         if report.total_violations > 20:
@@ -998,15 +1003,14 @@ class ReportRenderer:
             actions.append(
                 {
                     "priority": "low",
-                    "text": ("Code quality is good; keep it up!"),
+                    "text": "Code quality is good; keep it up!",
                 }
             )
+        return actions
 
-        score_color = self._get_score_color(report.avg_score)
-        grade_label = self._get_grade_label(report.avg_score)
-
-        # Prepare file detail data (for expansion)
-        files_json = json.dumps(
+    def _prepare_files_json(self, report: ProjectReport) -> str:
+        """Return JSON string of file detail data for JS template."""
+        return json.dumps(
             [
                 {
                     "path": self._relative_path(f.file_path, report.project_path),
@@ -1018,7 +1022,7 @@ class ReportRenderer:
                     "bandit_high": f.bandit_high,
                     "bandit_medium": f.bandit_medium,
                     "line_count": f.line_count,
-                    "complexity_hotspots": (f.complexity_hotspots),
+                    "complexity_hotspots": f.complexity_hotspots,
                     "ruff_issues": f.ruff_issues,
                     "mypy_issues": f.mypy_issues,
                     "bandit_issues": f.bandit_issues,
@@ -1026,6 +1030,22 @@ class ReportRenderer:
                 for f in report.files
             ]
         )
+
+    def render_html(self, report: ProjectReport) -> str:
+        """HTML output - full web report with charts, Light/Dark mode."""
+
+        # Prepare data via helper methods
+        grade_chart = self._prepare_grade_chart_data(report)
+        grade_labels = grade_chart["labels"]
+        grade_values = grade_chart["values"]
+        grade_colors = grade_chart["colors"]
+
+        complexity_ranges = self._prepare_complexity_ranges(report)
+        actions = self._prepare_actions(report)
+        files_json = self._prepare_files_json(report)
+
+        score_color = self._get_score_color(report.avg_score)
+        grade_label = self._get_grade_label(report.avg_score)
 
         cc_class = (
             "high"
@@ -2039,10 +2059,10 @@ document.body.getAttribute(\
 
 
 def generate_report(
-    path: str,
+    path: str | Path,
     output_format: str = "terminal",
-    exclude: list = None,
-    output_file: str = None,
+    exclude: Optional[list[str]] = None,
+    output_file: Optional[str] = None,
 ):
     """
     Generate a code quality report.

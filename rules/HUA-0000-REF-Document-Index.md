@@ -16,6 +16,9 @@
 | 2102 | CHG | Add Test Infrastructure |
 | 2103 | CHG | Fix Ruff Violations In Source Code |
 | 2104 | SOP | Workflow Routing PRJ |
+| 2105 | CHG | Fix Type Errors |
+| 2106 | CHG | Reduce Complexity Hotspots |
+| 2107 | CHG | Suppress Example Code Security Warnings |
 
 ---
 

@@ -6,9 +6,9 @@ Supports multi-dimensional quality analysis of single files or directories.
 import json
 import re
 import subprocess
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 
 @dataclass
@@ -23,29 +23,21 @@ class CodeMetrics:
 
     # Lint
     ruff_violations: int = 0
-    ruff_errors: list = None
+    ruff_errors: list[Any] = field(default_factory=list)
     pylint_score: float = 0.0
 
     # Types
     mypy_errors: int = 0
-    mypy_warnings: list = None
+    mypy_warnings: list[Any] = field(default_factory=list)
 
     # Security
     bandit_high: int = 0
     bandit_medium: int = 0
-    bandit_issues: list = None
+    bandit_issues: list[Any] = field(default_factory=list)
 
     # Overall grade
     overall_score: float = 0.0
     grade: str = "N/A"
-
-    def __post_init__(self):
-        if self.ruff_errors is None:
-            self.ruff_errors = []
-        if self.mypy_warnings is None:
-            self.mypy_warnings = []
-        if self.bandit_issues is None:
-            self.bandit_issues = []
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -83,7 +75,7 @@ class CodeAnalyzer:
             )
             print("Run: pip install ruff radon bandit mypy pylint")
 
-    def analyze(self, path: str, run_pylint: bool = True) -> CodeMetrics:
+    def analyze(self, path: str | Path, run_pylint: bool = True) -> CodeMetrics:
         """
         Analyze a code file or directory.
 
@@ -94,24 +86,24 @@ class CodeAnalyzer:
         Returns:
             CodeMetrics object
         """
-        path = Path(path)
-        if not path.exists():
-            raise FileNotFoundError(f"Path does not exist: {path}")
+        resolved = Path(path)
+        if not resolved.exists():
+            raise FileNotFoundError(f"Path does not exist: {resolved}")
 
-        metrics = CodeMetrics(file_path=str(path))
+        metrics = CodeMetrics(file_path=str(resolved))
 
         # 1. Ruff (fastest)
-        ruff_result = self._run_ruff(path)
+        ruff_result = self._run_ruff(resolved)
         metrics.ruff_violations = len(ruff_result)
         metrics.ruff_errors = ruff_result[:10]  # Keep only first 10
 
         # 2. Radon complexity
-        complexity_data = self._run_radon(path)
+        complexity_data = self._run_radon(resolved)
         metrics.max_cyclomatic_complexity = complexity_data.get("max", 0)
         metrics.functions_analyzed = complexity_data.get("count", 0)
 
         # 3. Bandit security scan
-        bandit_result = self._run_bandit(path)
+        bandit_result = self._run_bandit(resolved)
         metrics.bandit_high = sum(
             1 for r in bandit_result if r.get("issue_severity") == "HIGH"
         )
@@ -121,13 +113,13 @@ class CodeAnalyzer:
         metrics.bandit_issues = bandit_result[:5]  # Keep only first 5
 
         # 4. Mypy type checking
-        mypy_result = self._run_mypy(path)
+        mypy_result = self._run_mypy(resolved)
         metrics.mypy_errors = len(mypy_result)
         metrics.mypy_warnings = mypy_result[:10]  # Keep only first 10
 
         # 5. Pylint (optional, slower)
         if run_pylint:
-            metrics.pylint_score = self._run_pylint(path)
+            metrics.pylint_score = self._run_pylint(resolved)
 
         # Calculate overall score
         metrics.overall_score = self._calculate_score(metrics)
