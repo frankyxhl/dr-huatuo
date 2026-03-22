@@ -40,6 +40,7 @@
 | 2126 | CHG | HTML Report Complexity Drilldown |
 | 2127 | CHG | CI CD GitHub Actions PyPI |
 | 2128 | CHG | Restructure to src Package Layout |
+| 2129 | PRP | Multi Language Analyzer Plugin Architecture |
 
 ---
 
