@@ -21,8 +21,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-from dataset_annotator import DatasetAnnotator
-from dataset_dedup import DatasetDeduplicator, DeduplicationReport
+from dr_huatuo.dataset_annotator import DatasetAnnotator
+from dr_huatuo.dataset_dedup import DatasetDeduplicator, DeduplicationReport
 
 # ---------------------------------------------------------------------------
 # Path-based pairing regex

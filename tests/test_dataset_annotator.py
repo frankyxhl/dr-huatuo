@@ -19,7 +19,7 @@ from unittest.mock import patch
 
 import pytest
 
-from dataset_annotator import (
+from dr_huatuo.dataset_annotator import (
     ANNOTATOR_VERSION,
     SCHEMA_VERSION,
     DatasetAnnotator,
@@ -168,7 +168,7 @@ class TestScoringParity:
     """Verify standalone scoring matches CodeAnalyzer for identical inputs."""
 
     def test_parity_clean(self):
-        from code_analyzer import CodeAnalyzer, CodeMetrics
+        from dr_huatuo.code_analyzer import CodeAnalyzer, CodeMetrics
 
         analyzer = object.__new__(CodeAnalyzer)
         analyzer.venv_python = None
@@ -191,7 +191,7 @@ class TestScoringParity:
         assert ca_score == da_score
 
     def test_parity_bad(self):
-        from code_analyzer import CodeAnalyzer, CodeMetrics
+        from dr_huatuo.code_analyzer import CodeAnalyzer, CodeMetrics
 
         analyzer = object.__new__(CodeAnalyzer)
         analyzer.venv_python = None
@@ -217,7 +217,7 @@ class TestScoringParity:
         assert ca_grade == da_grade
 
     def test_parity_medium(self):
-        from code_analyzer import CodeAnalyzer, CodeMetrics
+        from dr_huatuo.code_analyzer import CodeAnalyzer, CodeMetrics
 
         analyzer = object.__new__(CodeAnalyzer)
         analyzer.venv_python = None

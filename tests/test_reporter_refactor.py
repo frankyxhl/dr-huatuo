@@ -19,7 +19,7 @@ from unittest.mock import patch
 
 import pytest
 
-from code_reporter import (
+from dr_huatuo.code_reporter import (
     CodeAnalyzer,
     FileMetrics,
     ProjectReport,

@@ -95,6 +95,21 @@ After routing through COR-1103, check these HUA-specific branches:
    └── Dataset pipeline or new output format for research consumers?
        └── PRP (COR-1102) → Review (COR-1602 strict)
            └── JSON output changes are breaking — flag as such
+
+10. Release or publishing?
+    ├── Version bump → CHG (COR-1101)
+    │   └── Update version in src/dr_huatuo/__init__.py (single source of truth)
+    │   └── Follow semver: MAJOR.MINOR.PATCH
+    ├── CI/CD workflow change → CHG (COR-1101)
+    │   └── .github/workflows/ci.yml or publish.yml
+    └── Publish to PyPI → Create GitHub Release (tag: vX.Y.Z)
+        └── publish.yml auto-triggers via Trusted Publisher
+        └── MUST pass make check + code review BEFORE tagging
+
+11. Package structure or import refactor?
+    └── CHG (COR-1101) — high impact, review required
+        └── All imports (source + tests), Makefile, CI must be updated together
+        └── Package lives in src/dr_huatuo/; entry point: dr_huatuo.cli:main
 ```
 
 ---
@@ -111,7 +126,10 @@ HTML rendering = render_html + 7 helpers (~1140 lines total); test visually
 JSON output is a contract; field changes are breaking changes
 CLI interfaces differ between the two scripts; changes are breaking
 All code must be in English (HUA-2101-ADR)
-make check (lint + test) must pass before any change is complete
+make check (lint + test) + code review (Codex+Gemini ≥9) MUST pass before ANY commit
+Version: single source in src/dr_huatuo/__init__.py; semver MAJOR.MINOR.PATCH
+Package: src/dr_huatuo/ layout; entry point dr-huatuo = dr_huatuo.cli:main
+Dependencies: all managed in pyproject.toml (deps, optional-deps, build config)
 ```
 
 ---

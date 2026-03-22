@@ -14,7 +14,7 @@ Grade returns English-labeled strings:
 
 import pytest
 
-from code_analyzer import CodeAnalyzer, CodeMetrics
+from dr_huatuo.code_analyzer import CodeAnalyzer, CodeMetrics
 
 
 @pytest.fixture

@@ -13,7 +13,7 @@ Grade returns single-letter strings: "A", "B", "C", "D", "F" (no Chinese labels)
 
 import pytest
 
-from code_reporter import CodeAnalyzer, FileMetrics
+from dr_huatuo.code_reporter import CodeAnalyzer, FileMetrics
 
 
 @pytest.fixture

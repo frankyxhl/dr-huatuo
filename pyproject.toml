@@ -40,7 +40,7 @@ research = ["scipy", "datasketch", "scikit-learn"]
 dev = ["pytest", "pytest-cov"]
 
 [project.scripts]
-dr-huatuo = "cli:main"
+dr-huatuo = "dr_huatuo.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/frankyxhl/dr-huatuo"
@@ -56,19 +56,5 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]
 
-[tool.hatch.build]
-exclude = ["data/", "tests/", "rules/", ".claude/", "incomings/", "docs/"]
-include = [
-    "cli.py",
-    "code_analyzer.py",
-    "code_reporter.py",
-    "dataset_annotator.py",
-    "dataset_dedup.py",
-    "quality_profile.py",
-    "scoring_optimizer.py",
-    "bugsinpy_extract.py",
-    "bugsinpy_analysis.py",
-    "example_code.py",
-    "README.md",
-    "LICENSE",
-]
+[tool.hatch.build.targets.wheel]
+packages = ["src/dr_huatuo"]

@@ -112,9 +112,7 @@ class CodeAnalyzer:
             # Enrich per-file hotspots with breakdown
             for spot in metrics.complexity_hotspots:
                 spot["_file"] = str(file_path)
-                spot["breakdown"] = self._analyze_complexity_breakdown(
-                    file_path, spot
-                )
+                spot["breakdown"] = self._analyze_complexity_breakdown(file_path, spot)
 
         # Bandit
         if self.available_tools.get("bandit"):
@@ -461,9 +459,7 @@ class CodeAnalyzer:
             lines = content.split("\n")
             start_line = target_func.lineno
             end_line = target_func.end_lineno or start_line + 20
-            code_snippet = "\n".join(
-                lines[start_line - 1 : end_line]
-            )
+            code_snippet = "\n".join(lines[start_line - 1 : end_line])
 
             return {
                 "base_complexity": 1,
@@ -2106,9 +2102,7 @@ document.body.getAttribute(\
                 " border-radius: 4px;"
                 " overflow-x: auto;"
                 " font-size: 0.8rem;"
-                ' line-height: 1.4;">'
-                + "\n".join(numbered_lines)
-                + "</pre></details>"
+                ' line-height: 1.4;">' + "\n".join(numbered_lines) + "</pre></details>"
             )
 
         html += "</div>"

@@ -10,7 +10,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from bugsinpy_extract import BugExtractionResult, BugsInPyExtractor, ExtractionReport
+from dr_huatuo.bugsinpy_extract import (
+    BugExtractionResult,
+    BugsInPyExtractor,
+    ExtractionReport,
+)
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -217,7 +221,9 @@ class TestGetAffectedFiles:
         mock_result = MagicMock()
         mock_result.returncode = 0
         mock_result.stdout = "thefuck/rules/pip.py\ntests/test_pip.py\nREADME.md\n"
-        with patch("bugsinpy_extract.subprocess.run", return_value=mock_result):
+        with patch(
+            "dr_huatuo.bugsinpy_extract.subprocess.run", return_value=mock_result
+        ):
             files = extractor._get_affected_files(tmp_path, "aaa", "bbb")
         # Only .py files
         assert "thefuck/rules/pip.py" in files
@@ -228,7 +234,9 @@ class TestGetAffectedFiles:
         mock_result = MagicMock()
         mock_result.returncode = 1
         mock_result.stdout = ""
-        with patch("bugsinpy_extract.subprocess.run", return_value=mock_result):
+        with patch(
+            "dr_huatuo.bugsinpy_extract.subprocess.run", return_value=mock_result
+        ):
             files = extractor._get_affected_files(tmp_path, "aaa", "bbb")
         assert files == []
 
@@ -236,7 +244,9 @@ class TestGetAffectedFiles:
         mock_result = MagicMock()
         mock_result.returncode = 0
         mock_result.stdout = ""
-        with patch("bugsinpy_extract.subprocess.run", return_value=mock_result):
+        with patch(
+            "dr_huatuo.bugsinpy_extract.subprocess.run", return_value=mock_result
+        ):
             files = extractor._get_affected_files(tmp_path, "aaa", "bbb")
         assert files == []
 
@@ -249,7 +259,9 @@ class TestGetAffectedFiles:
             "thefuck/shells/zsh.py\n"
             "thefuck/shells/__init__.py\n"
         )
-        with patch("bugsinpy_extract.subprocess.run", return_value=mock_result):
+        with patch(
+            "dr_huatuo.bugsinpy_extract.subprocess.run", return_value=mock_result
+        ):
             files = extractor._get_affected_files(tmp_path, "aaa", "bbb")
         assert len(files) == 4
 
@@ -300,7 +312,9 @@ class TestExtractBug:
         diff_result.returncode = 0
         diff_result.stdout = "README.md\nsetup.cfg\n"
 
-        with patch("bugsinpy_extract.subprocess.run", return_value=diff_result):
+        with patch(
+            "dr_huatuo.bugsinpy_extract.subprocess.run", return_value=diff_result
+        ):
             result = extractor._extract_bug(3, bug_dir, tmp_path)
         assert result is None
 
@@ -312,7 +326,9 @@ class TestExtractBug:
         diff_result.returncode = 0
         diff_result.stdout = "tests/test_foo.py\ntests/test_bar.py\n"
 
-        with patch("bugsinpy_extract.subprocess.run", return_value=diff_result):
+        with patch(
+            "dr_huatuo.bugsinpy_extract.subprocess.run", return_value=diff_result
+        ):
             result = extractor._extract_bug(1, bug_dir, tmp_path)
         assert result is None
 
@@ -335,7 +351,7 @@ class TestExtractBug:
                 return show_result
             return MagicMock(returncode=1)
 
-        with patch("bugsinpy_extract.subprocess.run", side_effect=mock_run):
+        with patch("dr_huatuo.bugsinpy_extract.subprocess.run", side_effect=mock_run):
             result = extractor._extract_bug(1, bug_dir, tmp_path)
 
         assert result is not None
@@ -366,7 +382,7 @@ class TestExtractBug:
                 return show_result
             return MagicMock(returncode=1)
 
-        with patch("bugsinpy_extract.subprocess.run", side_effect=mock_run):
+        with patch("dr_huatuo.bugsinpy_extract.subprocess.run", side_effect=mock_run):
             result = extractor._extract_bug(2, bug_dir, tmp_path)
 
         assert result is not None
@@ -394,7 +410,7 @@ class TestExtractBug:
                 return show_result
             return MagicMock(returncode=1)
 
-        with patch("bugsinpy_extract.subprocess.run", side_effect=mock_run):
+        with patch("dr_huatuo.bugsinpy_extract.subprocess.run", side_effect=mock_run):
             result = extractor._extract_bug(1, bug_dir, tmp_path)
 
         # Both buggy and fixed fail, so result is None

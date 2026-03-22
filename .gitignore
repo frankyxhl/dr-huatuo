@@ -14,3 +14,6 @@ fx_alfred_report.md
 deep-research-report.md
 data/repos/
 data/bugsinpy/
+dist/
+build/
+*.egg-info/

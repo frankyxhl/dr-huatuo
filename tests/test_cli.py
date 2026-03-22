@@ -22,8 +22,8 @@ import pytest
 
 
 def _run_cli(*args: str, cwd: str | None = None) -> subprocess.CompletedProcess:
-    """Run cli.py as a subprocess and return the result."""
-    cmd = [sys.executable, "cli.py", *args]
+    """Run cli as a subprocess via python -m dr_huatuo.cli."""
+    cmd = [sys.executable, "-m", "dr_huatuo.cli", *args]
     return subprocess.run(
         cmd,
         capture_output=True,
@@ -42,7 +42,7 @@ class TestDiscoverFiles:
     """Test _discover_files helper."""
 
     def test_single_py_file(self, tmp_path):
-        from cli import _discover_files
+        from dr_huatuo.cli import _discover_files
 
         f = tmp_path / "hello.py"
         f.write_text("x = 1\n")
@@ -50,7 +50,7 @@ class TestDiscoverFiles:
         assert result == [f]
 
     def test_directory_finds_py_files(self, tmp_path):
-        from cli import _discover_files
+        from dr_huatuo.cli import _discover_files
 
         (tmp_path / "a.py").write_text("x = 1\n")
         (tmp_path / "b.py").write_text("y = 2\n")
@@ -60,7 +60,7 @@ class TestDiscoverFiles:
         assert all(f.suffix == ".py" for f in result)
 
     def test_directory_excludes_dirs(self, tmp_path):
-        from cli import _discover_files
+        from dr_huatuo.cli import _discover_files
 
         sub = tmp_path / ".venv"
         sub.mkdir()
@@ -71,13 +71,13 @@ class TestDiscoverFiles:
         assert result[0].name == "keep.py"
 
     def test_nonexistent_path_raises(self):
-        from cli import _discover_files
+        from dr_huatuo.cli import _discover_files
 
         with pytest.raises(FileNotFoundError):
             list(_discover_files("/nonexistent/path.py", []))
 
     def test_nested_directory(self, tmp_path):
-        from cli import _discover_files
+        from dr_huatuo.cli import _discover_files
 
         sub = tmp_path / "pkg"
         sub.mkdir()
@@ -96,7 +96,7 @@ class TestGatherLayer2:
     """Test _gather_layer2 for computing missing fields."""
 
     def test_loc_counts_lines(self, tmp_path):
-        from cli import _gather_layer2
+        from dr_huatuo.cli import _gather_layer2
 
         f = tmp_path / "test.py"
         f.write_text("a = 1\nb = 2\nc = 3\n")
@@ -104,7 +104,7 @@ class TestGatherLayer2:
         assert result["loc"] == 3
 
     def test_function_count(self, tmp_path):
-        from cli import _gather_layer2
+        from dr_huatuo.cli import _gather_layer2
 
         f = tmp_path / "test.py"
         f.write_text(
@@ -123,7 +123,7 @@ class TestGatherLayer2:
         assert result["function_count"] == 3
 
     def test_class_count(self, tmp_path):
-        from cli import _gather_layer2
+        from dr_huatuo.cli import _gather_layer2
 
         f = tmp_path / "test.py"
         f.write_text(
@@ -140,7 +140,7 @@ class TestGatherLayer2:
         assert result["class_count"] == 3
 
     def test_max_nesting_depth(self, tmp_path):
-        from cli import _gather_layer2
+        from dr_huatuo.cli import _gather_layer2
 
         f = tmp_path / "test.py"
         f.write_text(
@@ -156,7 +156,7 @@ class TestGatherLayer2:
         assert result["max_nesting_depth"] == 3
 
     def test_docstring_density(self, tmp_path):
-        from cli import _gather_layer2
+        from dr_huatuo.cli import _gather_layer2
 
         f = tmp_path / "test.py"
         f.write_text(
@@ -173,7 +173,7 @@ class TestGatherLayer2:
         assert result["docstring_density"] == pytest.approx(0.5)
 
     def test_comment_density(self, tmp_path):
-        from cli import _gather_layer2
+        from dr_huatuo.cli import _gather_layer2
 
         f = tmp_path / "test.py"
         f.write_text("# comment\nx = 1\ny = 2\n# another\nz = 3\n")
@@ -181,7 +181,7 @@ class TestGatherLayer2:
         assert result["comment_density"] == pytest.approx(2 / 5)
 
     def test_maintainability_index_present(self, tmp_path):
-        from cli import _gather_layer2
+        from dr_huatuo.cli import _gather_layer2
 
         f = tmp_path / "test.py"
         f.write_text("x = 1\n")
@@ -193,7 +193,7 @@ class TestGatherLayer2:
             assert result["maintainability_index"] > 0
 
     def test_data_warnings_default_empty(self, tmp_path):
-        from cli import _gather_layer2
+        from dr_huatuo.cli import _gather_layer2
 
         f = tmp_path / "test.py"
         f.write_text("x = 1\n")
@@ -201,7 +201,7 @@ class TestGatherLayer2:
         assert result["data_warnings"] == []
 
     def test_empty_file(self, tmp_path):
-        from cli import _gather_layer2
+        from dr_huatuo.cli import _gather_layer2
 
         f = tmp_path / "test.py"
         f.write_text("")
@@ -211,7 +211,7 @@ class TestGatherLayer2:
         assert result["class_count"] == 0
 
     def test_cognitive_complexity_present(self, tmp_path):
-        from cli import _gather_layer2
+        from dr_huatuo.cli import _gather_layer2
 
         f = tmp_path / "test.py"
         f.write_text(
@@ -239,7 +239,7 @@ class TestQualityGate:
 
         ratings: dict of dimension_name -> rating string (A/B/C/D or PASS/WARN/FAIL)
         """
-        from quality_profile import DimensionResult, QualityProfile
+        from dr_huatuo.quality_profile import DimensionResult, QualityProfile
 
         dims = {}
         for name in [
@@ -264,132 +264,123 @@ class TestQualityGate:
         )
 
     def test_no_fail_on_returns_false(self):
-        from cli import _check_quality_gate
+        from dr_huatuo.cli import _check_quality_gate
 
         profile = self._make_profile({})
         assert _check_quality_gate([("test.py", profile)], None, None) is False
 
     def test_fail_on_d_all_a_passes(self):
-        from cli import _check_quality_gate
+        from dr_huatuo.cli import _check_quality_gate
 
         profile = self._make_profile({})
         assert _check_quality_gate([("test.py", profile)], "D", None) is False
 
     def test_fail_on_d_with_d_fails(self):
-        from cli import _check_quality_gate
+        from dr_huatuo.cli import _check_quality_gate
 
         profile = self._make_profile({"complexity": "D"})
         assert _check_quality_gate([("test.py", profile)], "D", None) is True
 
     def test_fail_on_c_with_c_fails(self):
-        from cli import _check_quality_gate
+        from dr_huatuo.cli import _check_quality_gate
 
         profile = self._make_profile({"documentation": "C"})
         assert _check_quality_gate([("test.py", profile)], "C", None) is True
 
     def test_fail_on_c_with_d_fails(self):
-        from cli import _check_quality_gate
+        from dr_huatuo.cli import _check_quality_gate
 
         profile = self._make_profile({"documentation": "D"})
         assert _check_quality_gate([("test.py", profile)], "C", None) is True
 
     def test_fail_on_b_with_b_fails(self):
-        from cli import _check_quality_gate
+        from dr_huatuo.cli import _check_quality_gate
 
         profile = self._make_profile({"maintainability": "B"})
         assert _check_quality_gate([("test.py", profile)], "B", None) is True
 
     def test_fail_on_b_all_a_passes(self):
-        from cli import _check_quality_gate
+        from dr_huatuo.cli import _check_quality_gate
 
         profile = self._make_profile({})
         assert _check_quality_gate([("test.py", profile)], "B", None) is False
 
     def test_fail_on_d_security_fail_triggers(self):
         """--fail-on D implicitly includes Security FAIL."""
-        from cli import _check_quality_gate
+        from dr_huatuo.cli import _check_quality_gate
 
         profile = self._make_profile({"security": "FAIL"})
         assert _check_quality_gate([("test.py", profile)], "D", None) is True
 
     def test_fail_on_c_security_warn_triggers(self):
         """--fail-on C includes Security WARN."""
-        from cli import _check_quality_gate
+        from dr_huatuo.cli import _check_quality_gate
 
         profile = self._make_profile({"security": "WARN"})
         assert _check_quality_gate([("test.py", profile)], "C", None) is True
 
     def test_fail_on_c_security_fail_triggers(self):
         """--fail-on C includes Security FAIL."""
-        from cli import _check_quality_gate
+        from dr_huatuo.cli import _check_quality_gate
 
         profile = self._make_profile({"security": "FAIL"})
         assert _check_quality_gate([("test.py", profile)], "C", None) is True
 
     def test_fail_on_d_security_warn_does_not_trigger(self):
         """--fail-on D does NOT trigger on WARN (only FAIL)."""
-        from cli import _check_quality_gate
+        from dr_huatuo.cli import _check_quality_gate
 
         profile = self._make_profile({"security": "WARN"})
         assert _check_quality_gate([("test.py", profile)], "D", None) is False
 
     def test_fail_on_fail_security_fail(self):
-        from cli import _check_quality_gate
+        from dr_huatuo.cli import _check_quality_gate
 
         profile = self._make_profile({"security": "FAIL"})
         assert _check_quality_gate([("test.py", profile)], "FAIL", None) is True
 
     def test_fail_on_fail_security_pass(self):
-        from cli import _check_quality_gate
+        from dr_huatuo.cli import _check_quality_gate
 
         profile = self._make_profile({"security": "PASS"})
         assert _check_quality_gate([("test.py", profile)], "FAIL", None) is False
 
     def test_fail_on_warn_security_warn(self):
-        from cli import _check_quality_gate
+        from dr_huatuo.cli import _check_quality_gate
 
         profile = self._make_profile({"security": "WARN"})
         assert _check_quality_gate([("test.py", profile)], "WARN", None) is True
 
     def test_fail_on_warn_security_fail(self):
-        from cli import _check_quality_gate
+        from dr_huatuo.cli import _check_quality_gate
 
         profile = self._make_profile({"security": "FAIL"})
         assert _check_quality_gate([("test.py", profile)], "WARN", None) is True
 
     def test_dimension_filter_narrows_check(self):
         """--dimension security only checks security dimension."""
-        from cli import _check_quality_gate
+        from dr_huatuo.cli import _check_quality_gate
 
         profile = self._make_profile({"complexity": "D", "security": "PASS"})
-        assert (
-            _check_quality_gate([("test.py", profile)], "D", "security") is False
-        )
+        assert _check_quality_gate([("test.py", profile)], "D", "security") is False
 
     def test_dimension_filter_matching(self):
-        from cli import _check_quality_gate
+        from dr_huatuo.cli import _check_quality_gate
 
         profile = self._make_profile({"complexity": "D"})
-        assert (
-            _check_quality_gate([("test.py", profile)], "D", "complexity") is True
-        )
+        assert _check_quality_gate([("test.py", profile)], "D", "complexity") is True
 
     def test_multiple_files(self):
-        from cli import _check_quality_gate
+        from dr_huatuo.cli import _check_quality_gate
 
         p1 = self._make_profile({})
         p2 = self._make_profile({"complexity": "D"})
-        assert (
-            _check_quality_gate(
-                [("good.py", p1), ("bad.py", p2)], "D", None
-            )
-            is True
-        )
+        assert _check_quality_gate([("good.py", p1), ("bad.py", p2)], "D", None) is True
 
     def test_none_rating_does_not_trigger(self):
         """N/A dimensions should not trigger quality gate."""
-        from cli import _check_quality_gate
-        from quality_profile import DimensionResult, QualityProfile
+        from dr_huatuo.cli import _check_quality_gate
+        from dr_huatuo.quality_profile import DimensionResult, QualityProfile
 
         profile = QualityProfile(
             maintainability=DimensionResult(
@@ -423,8 +414,8 @@ class TestBuildMetricsDict:
     """Test _build_metrics_dict combining CodeMetrics + Layer 2."""
 
     def test_field_mapping(self):
-        from cli import _build_metrics_dict
-        from code_analyzer import CodeMetrics
+        from dr_huatuo.cli import _build_metrics_dict
+        from dr_huatuo.code_analyzer import CodeMetrics
 
         cm = CodeMetrics(
             file_path="test.py",

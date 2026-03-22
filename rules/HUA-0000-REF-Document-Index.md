@@ -39,6 +39,7 @@
 | 2125 | CHG | Implement Unified CLI |
 | 2126 | CHG | HTML Report Complexity Drilldown |
 | 2127 | CHG | CI CD GitHub Actions PyPI |
+| 2128 | CHG | Restructure to src Package Layout |
 
 ---
 

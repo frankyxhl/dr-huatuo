@@ -20,7 +20,7 @@ from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from typing import Iterator, Optional
 
-from quality_profile import profile_file
+from dr_huatuo.quality_profile import profile_file
 
 SCHEMA_VERSION = "1.0"
 ANNOTATOR_VERSION = "0.1.0"

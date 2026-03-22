@@ -194,9 +194,7 @@ def _rate_maintainability(mi: float | None) -> DimensionResult:
     )
 
 
-def _rate_complexity(
-    cognitive: int | None, nesting: int | None
-) -> DimensionResult:
+def _rate_complexity(cognitive: int | None, nesting: int | None) -> DimensionResult:
     """Rate the Complexity dimension (worst of cognitive + nesting)."""
     ratings: list[tuple[str, str]] = []
     detail: dict[str, str] = {}
@@ -222,9 +220,7 @@ def _rate_complexity(
     )
 
 
-def _rate_code_style(
-    ruff: int | None, pylint: float | None
-) -> DimensionResult:
+def _rate_code_style(ruff: int | None, pylint: float | None) -> DimensionResult:
     """Rate the Code Style dimension (worst of ruff + pylint)."""
     ratings: list[tuple[str, str]] = []
     detail: dict[str, str] = {}
@@ -268,9 +264,7 @@ def _rate_documentation(
 
     # Docstring density: exclude if function_count is 0 or None, or value is None
     include_docstring = (
-        docstring_d is not None
-        and function_count is not None
-        and function_count > 0
+        docstring_d is not None and function_count is not None and function_count > 0
     )
     if include_docstring:
         r = _rate_single_docstring(docstring_d)  # type: ignore[arg-type]
@@ -278,9 +272,7 @@ def _rate_documentation(
         detail["docstring_density"] = r
 
     # Comment density: exclude if loc is 0 or None, or value is None
-    include_comment = (
-        comment_d is not None and loc is not None and loc > 0
-    )
+    include_comment = comment_d is not None and loc is not None and loc > 0
     if include_comment:
         r = _rate_single_comment(comment_d)  # type: ignore[arg-type]
         ratings.append(("comment_density", r))

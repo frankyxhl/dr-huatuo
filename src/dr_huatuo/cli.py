@@ -8,6 +8,7 @@ Subcommands:
 
 import argparse
 import ast
+import importlib.metadata
 import subprocess
 import sys
 from pathlib import Path
@@ -15,10 +16,9 @@ from typing import Iterator, Optional
 
 from rich.console import Console
 
-from code_analyzer import CodeAnalyzer, CodeMetrics
-from quality_profile import QualityProfile, profile_file
-
-__version__ = "0.2.0"
+from dr_huatuo import __version__
+from dr_huatuo.code_analyzer import CodeAnalyzer, CodeMetrics
+from dr_huatuo.quality_profile import QualityProfile, profile_file
 
 # Control-flow node types for nesting depth calculation
 _CONTROL_FLOW_NODES = (
@@ -45,9 +45,7 @@ console = Console()
 # ===================================================================
 
 
-def _discover_files(
-    path: str, exclude: list[str]
-) -> Iterator[Path]:
+def _discover_files(path: str, exclude: list[str]) -> Iterator[Path]:
     """Discover Python files to analyze.
 
     Args:
@@ -463,9 +461,7 @@ def _render_project_summary(
         console.print("\n[bold]Files with issues (D-rated dimensions):[/bold]")
         for fn, dim_name, detail in d_files:
             short_fn = Path(fn).name
-            console.print(
-                f"  {short_fn:<25} {dim_name}: [red]D[/red]{detail}"
-            )
+            console.print(f"  {short_fn:<25} {dim_name}: [red]D[/red]{detail}")
 
 
 # ===================================================================
@@ -520,8 +516,7 @@ def cmd_check(args: argparse.Namespace) -> int:
     if _check_quality_gate(profiles, fail_on, dimension):
         console.print(
             f"\n[red bold]Quality gate failed:[/red bold] "
-            f"--fail-on {fail_on}"
-            + (f" --dimension {dimension}" if dimension else "")
+            f"--fail-on {fail_on}" + (f" --dimension {dimension}" if dimension else "")
         )
         return 1
 
@@ -530,7 +525,7 @@ def cmd_check(args: argparse.Namespace) -> int:
 
 def cmd_report(args: argparse.Namespace) -> int:
     """Run report subcommand: delegate to code_reporter.py."""
-    from code_reporter import generate_report
+    from dr_huatuo.code_reporter import generate_report
 
     try:
         default_exclude = [".venv", "__pycache__", ".git"]
@@ -546,7 +541,11 @@ def cmd_report(args: argparse.Namespace) -> int:
 
 def cmd_version(_args: argparse.Namespace) -> int:
     """Show huatuo version and tool versions."""
-    console.print(f"huatuo {__version__}")
+    try:
+        version = importlib.metadata.version("dr-huatuo")
+    except importlib.metadata.PackageNotFoundError:
+        version = __version__
+    console.print(f"huatuo {version}")
 
     tools = {
         "ruff": ["ruff", "--version"],
@@ -639,25 +638,25 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main() -> int:
-    """Main entry point."""
+def main() -> None:
+    """Main entry point (called by console_scripts)."""
     parser = build_parser()
     args = parser.parse_args()
 
     if args.command is None:
         parser.print_help()
-        return 1
+        sys.exit(1)
 
     if args.command == "check":
-        return cmd_check(args)
+        sys.exit(cmd_check(args))
     elif args.command == "report":
-        return cmd_report(args)
+        sys.exit(cmd_report(args))
     elif args.command == "version":
-        return cmd_version(args)
+        sys.exit(cmd_version(args))
     else:
         parser.print_help()
-        return 1
+        sys.exit(1)
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

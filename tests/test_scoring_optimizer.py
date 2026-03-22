@@ -12,7 +12,7 @@ import re
 
 import pytest
 
-from scoring_optimizer import (
+from dr_huatuo.scoring_optimizer import (
     BASELINE_WEIGHTS,
     BOUNDS,
     OptimizationResult,
@@ -324,7 +324,7 @@ class TestCalculateScoreWithParams:
 
     def test_baseline_matches_annotator(self):
         """With baseline params, score should match annotator."""
-        from dataset_annotator import _calculate_score
+        from dr_huatuo.dataset_annotator import _calculate_score
 
         metrics = {
             "ruff_violations": 5,
@@ -698,7 +698,7 @@ class TestOptimize:
 class TestCLI:
     def test_module_has_main_guard(self):
         """scoring_optimizer.py should have if __name__ == '__main__'."""
-        import scoring_optimizer
+        import dr_huatuo.scoring_optimizer as scoring_optimizer
 
         source = open(scoring_optimizer.__file__).read()
         assert (

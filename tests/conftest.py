@@ -2,8 +2,8 @@
 
 import pytest
 
-from code_analyzer import CodeMetrics
-from code_reporter import FileMetrics, ProjectReport
+from dr_huatuo.code_analyzer import CodeMetrics
+from dr_huatuo.code_reporter import FileMetrics, ProjectReport
 
 # ---------------------------------------------------------------------------
 # CodeMetrics fixtures (code_analyzer.py)

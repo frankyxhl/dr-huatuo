@@ -6,7 +6,7 @@ Path inputs are accepted at all entry points.
 
 from unittest.mock import patch
 
-from code_analyzer import CodeMetrics
+from dr_huatuo.code_analyzer import CodeMetrics
 
 
 class TestCodeMetricsDefaults:
@@ -41,7 +41,7 @@ class TestAnalyzeAcceptsPath:
         dummy = tmp_path / "dummy.py"
         dummy.write_text("x = 1\n")
 
-        from code_analyzer import CodeAnalyzer
+        from dr_huatuo.code_analyzer import CodeAnalyzer
 
         # Monkeypatch all external tool calls to avoid tool dependency
         with (

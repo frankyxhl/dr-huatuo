@@ -9,7 +9,7 @@ import statistics
 
 import pytest
 
-from bugsinpy_analysis import (
+from dr_huatuo.bugsinpy_analysis import (
     _NUMERIC_METRICS,
     _PAIR_REGEX,
     AnalysisReport,

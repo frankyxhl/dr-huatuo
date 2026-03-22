@@ -9,7 +9,7 @@ import json
 
 import pytest
 
-from code_reporter import ReportRenderer
+from dr_huatuo.code_reporter import ReportRenderer
 
 
 @pytest.fixture

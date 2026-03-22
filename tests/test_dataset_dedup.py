@@ -121,7 +121,7 @@ SRC_SHORT = "x = 1\n"
 
 class TestConstructor:
     def test_default_params(self):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         dd = DatasetDeduplicator()
         assert dd.threshold == 0.8
@@ -130,44 +130,44 @@ class TestConstructor:
         assert dd.workers == 1
 
     def test_invalid_threshold_zero(self):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         with pytest.raises(ValueError):
             DatasetDeduplicator(threshold=0.0)
 
     def test_invalid_threshold_negative(self):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         with pytest.raises(ValueError):
             DatasetDeduplicator(threshold=-0.5)
 
     def test_invalid_threshold_above_one(self):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         with pytest.raises(ValueError):
             DatasetDeduplicator(threshold=1.5)
 
     def test_threshold_one_ok(self):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         dd = DatasetDeduplicator(threshold=1.0)
         assert dd.threshold == 1.0
 
     def test_invalid_keep(self):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         with pytest.raises(ValueError):
             DatasetDeduplicator(keep="random")
 
     def test_invalid_mode(self):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         with pytest.raises(ValueError):
             DatasetDeduplicator(mode="minhash")
 
     def test_mode_exact_no_datasketch(self):
         """mode='exact' should work even without datasketch."""
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         dd = DatasetDeduplicator(mode="exact")
         assert dd.mode == "exact"
@@ -180,7 +180,7 @@ class TestConstructor:
 
 class TestReadSource:
     def test_read_from_disk(self, tmp_path):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         p = tmp_path / "test.py"
         p.write_text(SRC_A)
@@ -193,7 +193,7 @@ class TestReadSource:
         assert sha == _sha(SRC_A)
 
     def test_read_from_content_field(self, tmp_path):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         dd = DatasetDeduplicator(mode="exact")
         record = {"path": "nonexistent.py", "content": SRC_A}
@@ -205,7 +205,7 @@ class TestReadSource:
 
     def test_content_field_priority_over_disk(self, tmp_path):
         """When content field is present, disk is never read."""
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         p = tmp_path / "test.py"
         p.write_text(SRC_B)
@@ -217,7 +217,7 @@ class TestReadSource:
         assert source == _norm(SRC_A)  # content field wins
 
     def test_content_sha256_validation_pass(self, tmp_path):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         dd = DatasetDeduplicator(mode="exact")
         expected_sha = _sha(SRC_A)
@@ -227,7 +227,7 @@ class TestReadSource:
         assert record.get("dedup_error_type") is None
 
     def test_content_sha256_validation_mismatch(self, tmp_path):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         dd = DatasetDeduplicator(mode="exact")
         record = {
@@ -242,7 +242,7 @@ class TestReadSource:
         assert record["dedup_error"] is not None
 
     def test_io_error_missing_file(self):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         dd = DatasetDeduplicator(mode="exact")
         record = {"path": "/nonexistent/file.py"}
@@ -258,7 +258,7 @@ class TestReadSource:
 
 class TestExactHashPass:
     def test_exact_duplicates_grouped(self, tmp_path):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         _write_py(str(tmp_path), "a.py", SRC_A)
         _write_py(str(tmp_path), "b.py", SRC_A_DUP)  # exact dup
@@ -278,7 +278,7 @@ class TestExactHashPass:
         assert len(cluster_map[sha_a]) == 2
 
     def test_no_duplicates(self, tmp_path):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         _write_py(str(tmp_path), "a.py", SRC_A)
         _write_py(str(tmp_path), "c.py", SRC_B)
@@ -295,7 +295,7 @@ class TestExactHashPass:
 
     def test_line_ending_normalisation(self, tmp_path):
         """CRLF and LF versions should be exact duplicates."""
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         p1 = tmp_path / "lf.py"
         p1.write_bytes(b"def f():\n    pass\n")
@@ -318,7 +318,7 @@ class TestExactHashPass:
 class TestMinHashLSHPass:
     def test_near_duplicates_detected(self, tmp_path):
         """A and A_NEAR should be detected as near-duplicates."""
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         _write_py(str(tmp_path), "a.py", SRC_A)
         _write_py(str(tmp_path), "near.py", SRC_A_NEAR)
@@ -340,7 +340,7 @@ class TestMinHashLSHPass:
 
     def test_dissimilar_files_not_clustered(self, tmp_path):
         """SRC_A and SRC_B should NOT be in the same cluster."""
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         _write_py(str(tmp_path), "a.py", SRC_A)
         _write_py(str(tmp_path), "b.py", SRC_B)
@@ -359,7 +359,7 @@ class TestMinHashLSHPass:
 
     def test_short_file_skipped(self, tmp_path):
         """Files with <5 tokens should be skipped from MinHash."""
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         _write_py(str(tmp_path), "short.py", SRC_SHORT)
         _write_py(str(tmp_path), "a.py", SRC_A)
@@ -383,14 +383,14 @@ class TestMinHashLSHPass:
 
 class TestVerifyJaccard:
     def test_identical_shingles(self):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         dd = DatasetDeduplicator(mode="exact")
         shingles = {("a", "b", "c", "d", "e"), ("b", "c", "d", "e", "f")}
         assert dd._verify_jaccard(shingles, shingles) == 1.0
 
     def test_disjoint_shingles(self):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         dd = DatasetDeduplicator(mode="exact")
         s1 = {("a", "b", "c", "d", "e")}
@@ -398,7 +398,7 @@ class TestVerifyJaccard:
         assert dd._verify_jaccard(s1, s2) == 0.0
 
     def test_partial_overlap(self):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         dd = DatasetDeduplicator(mode="exact")
         s1 = {("a",), ("b",), ("c",), ("d",)}
@@ -415,7 +415,7 @@ class TestVerifyJaccard:
 
 class TestUnionFind:
     def test_transitive_closure(self):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         dd = DatasetDeduplicator(mode="exact")
         r1 = {"path": "a.py", "_idx": 0}
@@ -428,7 +428,7 @@ class TestUnionFind:
         assert len(clusters[0]) == 3
 
     def test_separate_components(self):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         dd = DatasetDeduplicator(mode="exact")
         r1 = {"path": "a.py", "_idx": 0}
@@ -440,7 +440,7 @@ class TestUnionFind:
         assert len(clusters) == 2
 
     def test_empty_pairs(self):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         dd = DatasetDeduplicator(mode="exact")
         clusters = dd._union_find([])
@@ -454,7 +454,7 @@ class TestUnionFind:
 
 class TestExpandWithExactMembers:
     def test_expansion(self):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         dd = DatasetDeduplicator(mode="exact")
         # rep_A had exact dup dup_A
@@ -479,7 +479,7 @@ class TestExpandWithExactMembers:
 
 class TestSelectRepresentative:
     def test_canonical_path(self):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         dd = DatasetDeduplicator(keep="canonical_path", mode="exact")
         cluster = [
@@ -491,7 +491,7 @@ class TestSelectRepresentative:
         assert rep["path"] == "a.py"
 
     def test_best_score(self):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         dd = DatasetDeduplicator(keep="best_score", mode="exact")
         cluster = [
@@ -503,7 +503,7 @@ class TestSelectRepresentative:
         assert rep["path"] == "b.py"
 
     def test_best_score_tiebreak_by_path(self):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         dd = DatasetDeduplicator(keep="best_score", mode="exact")
         cluster = [
@@ -515,7 +515,7 @@ class TestSelectRepresentative:
 
     def test_canonical_path_tiebreak_by_idx(self):
         """Same path (unlikely) -> tiebreak by original index."""
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         dd = DatasetDeduplicator(keep="canonical_path", mode="exact")
         cluster = [
@@ -539,7 +539,7 @@ class TestDedupGroupId:
         sorted_shas = sorted([sha1, sha2])
         expected = hashlib.sha256("".join(sorted_shas).encode("utf-8")).hexdigest()[:16]
 
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         dd = DatasetDeduplicator(mode="exact")
         cluster = [
@@ -551,7 +551,7 @@ class TestDedupGroupId:
         assert group_id == expected
 
     def test_group_id_invariant_to_order(self):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         dd = DatasetDeduplicator(mode="exact")
         sha1 = "aaaa"
@@ -574,7 +574,7 @@ class TestDedupGroupId:
 
 class TestDeduplicateRawDirectory:
     def test_exact_only_mode(self, tmp_path):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         _write_py(str(tmp_path / "input"), "a.py", SRC_A)
         _write_py(str(tmp_path / "input"), "a_dup.py", SRC_A_DUP)
@@ -595,7 +595,7 @@ class TestDeduplicateRawDirectory:
             assert r["dedup_kept"] is True
 
     def test_both_mode(self, tmp_path):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         input_dir = tmp_path / "input"
         input_dir.mkdir()
@@ -613,7 +613,7 @@ class TestDeduplicateRawDirectory:
         assert report.dedup_rate > 0
 
     def test_dry_run(self, tmp_path):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         input_dir = tmp_path / "input"
         input_dir.mkdir()
@@ -626,7 +626,7 @@ class TestDeduplicateRawDirectory:
         assert not os.path.exists(out)
 
     def test_keep_removed(self, tmp_path):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         input_dir = tmp_path / "input"
         input_dir.mkdir()
@@ -650,7 +650,7 @@ class TestDeduplicateRawDirectory:
 
 class TestDeduplicateJSONL:
     def test_annotated_jsonl(self, tmp_path):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         input_dir = tmp_path / "src"
         input_dir.mkdir()
@@ -672,7 +672,7 @@ class TestDeduplicateJSONL:
 
     def test_jsonl_with_content_field(self, tmp_path):
         """JSONL with inline content should not touch disk."""
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         jsonl_path = str(tmp_path / "input.jsonl")
         records = [
@@ -687,7 +687,7 @@ class TestDeduplicateJSONL:
         assert report.exact_duplicates_removed == 1
 
     def test_best_score_on_scoreless_raises(self, tmp_path):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         jsonl_path = str(tmp_path / "input.jsonl")
         records = [{"path": "a.py", "content": SRC_A}]
@@ -698,7 +698,7 @@ class TestDeduplicateJSONL:
             dd.deduplicate(jsonl_path, out)
 
     def test_best_score_on_raw_dir_raises(self, tmp_path):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         input_dir = tmp_path / "input"
         input_dir.mkdir()
@@ -710,7 +710,7 @@ class TestDeduplicateJSONL:
 
     def test_malformed_jsonl_skipped(self, tmp_path):
         """Malformed JSONL lines should be skipped with a warning."""
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         jsonl_path = str(tmp_path / "input.jsonl")
         with open(jsonl_path, "w") as f:
@@ -723,7 +723,7 @@ class TestDeduplicateJSONL:
         assert report.total_input == 2  # malformed line skipped
 
     def test_missing_path_skipped(self, tmp_path):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         jsonl_path = str(tmp_path / "input.jsonl")
         records = [
@@ -744,7 +744,7 @@ class TestDeduplicateJSONL:
 
 class TestErrorHandling:
     def test_io_error_kept_in_output(self, tmp_path):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         jsonl_path = str(tmp_path / "input.jsonl")
         records = [
@@ -762,7 +762,7 @@ class TestErrorHandling:
         assert error_recs[0]["dedup_reason"] == "error"
 
     def test_content_mismatch_kept_in_output(self, tmp_path):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         jsonl_path = str(tmp_path / "input.jsonl")
         records = [
@@ -794,7 +794,7 @@ class TestErrorHandling:
 
 class TestRefDedup:
     def test_ref_exact_removes_match(self, tmp_path):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         # Input has A and B; ref has A -> A should be removed
         input_jsonl = str(tmp_path / "input.jsonl")
@@ -817,7 +817,7 @@ class TestRefDedup:
         assert "b.py" in paths
 
     def test_ref_near_removes_match(self, tmp_path):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         # Input has A_NEAR and B; ref has A -> A_NEAR should be removed (near match)
         input_jsonl = str(tmp_path / "input.jsonl")
@@ -837,7 +837,7 @@ class TestRefDedup:
 
     def test_ref_backfill_representative(self, tmp_path):
         """When ref removes a cluster representative, backfill from remaining."""
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         # a.py (exact dup of ref), a_dup.py (exact dup of a.py) -> a.py removed,
         # a_dup.py should be backfilled as representative
@@ -871,7 +871,7 @@ class TestRefDedup:
 
 class TestDeduplicationReport:
     def test_dedup_rate_calculation(self, tmp_path):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         input_dir = tmp_path / "input"
         input_dir.mkdir()
@@ -885,7 +885,7 @@ class TestDeduplicationReport:
         assert abs(report.dedup_rate - 1 / 3) < 1e-9
 
     def test_all_unique(self, tmp_path):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         input_dir = tmp_path / "input"
         input_dir.mkdir()
@@ -907,7 +907,7 @@ class TestDeduplicationReport:
 
 class TestOutputFields:
     def test_all_dedup_fields_present(self, tmp_path):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         input_dir = tmp_path / "input"
         input_dir.mkdir()
@@ -932,7 +932,7 @@ class TestOutputFields:
                 assert field in r, f"Missing field {field} in record {r['path']}"
 
     def test_unique_file_fields(self, tmp_path):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         jsonl_path = str(tmp_path / "input.jsonl")
         _write_jsonl(jsonl_path, [{"path": "a.py", "content": SRC_A}])
@@ -949,7 +949,7 @@ class TestOutputFields:
         assert r["dedup_similarity_max"] is None
 
     def test_existing_fields_preserved(self, tmp_path):
-        from dataset_dedup import DatasetDeduplicator
+        from dr_huatuo.dataset_dedup import DatasetDeduplicator
 
         jsonl_path = str(tmp_path / "input.jsonl")
         _write_jsonl(
@@ -972,7 +972,7 @@ class TestOutputFields:
 class TestTokenizeWarning:
     def test_tokenize_failure_prints_to_stderr(self, capsys):
         """_tokenise_and_normalise should print a warning to stderr on TokenError."""
-        from dataset_dedup import _tokenise_and_normalise
+        from dr_huatuo.dataset_dedup import _tokenise_and_normalise
 
         # Unclosed string literal causes TokenError during tokenization
         bad_source = 'x = "unclosed string\n'
@@ -985,7 +985,7 @@ class TestTokenizeWarning:
 
     def test_tokenize_failure_default_path_in_warning(self, capsys):
         """When path is not provided, warning uses <unknown>."""
-        from dataset_dedup import _tokenise_and_normalise
+        from dr_huatuo.dataset_dedup import _tokenise_and_normalise
 
         bad_source = 'x = "unclosed\n'
         _tokenise_and_normalise(bad_source)

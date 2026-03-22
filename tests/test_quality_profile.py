@@ -13,7 +13,7 @@ Tests cover:
 - Limiting metric correctness
 """
 
-from quality_profile import (
+from dr_huatuo.quality_profile import (
     QualityProfile,
     _rate_code_style,
     _rate_complexity,
