@@ -972,23 +972,34 @@ class TestOutputFields:
 class TestTokenizeWarning:
     def test_tokenize_failure_prints_to_stderr(self, capsys):
         """_tokenise_and_normalise should print a warning to stderr on TokenError."""
+        from unittest.mock import patch
+
         from dr_huatuo.dataset_dedup import _tokenise_and_normalise
 
-        # Unclosed string literal causes TokenError during tokenization
-        bad_source = 'x = "unclosed string\n'
-        tokens = _tokenise_and_normalise(bad_source, path="bad_file.py")
+        # Mock tokenize to always raise TokenError
+        tok_path = "dr_huatuo.dataset_dedup.tokenize.generate_tokens"
+        tok_err = __import__("tokenize").TokenError("mock", (1, 0))
+        with patch(tok_path) as mock_tok:
+            mock_tok.side_effect = tok_err
+            tokens = _tokenise_and_normalise(
+                "x = 1\n", path="bad_file.py"
+            )
 
         captured = capsys.readouterr()
         assert "Warning: tokenize failed for bad_file.py" in captured.err
-        # Should return whatever tokens were collected before the error
         assert isinstance(tokens, list)
 
     def test_tokenize_failure_default_path_in_warning(self, capsys):
         """When path is not provided, warning uses <unknown>."""
+        from unittest.mock import patch
+
         from dr_huatuo.dataset_dedup import _tokenise_and_normalise
 
-        bad_source = 'x = "unclosed\n'
-        _tokenise_and_normalise(bad_source)
+        tok_path = "dr_huatuo.dataset_dedup.tokenize.generate_tokens"
+        tok_err = __import__("tokenize").TokenError("mock", (1, 0))
+        with patch(tok_path) as mock_tok:
+            mock_tok.side_effect = tok_err
+            _tokenise_and_normalise("x = 1\n")
 
         captured = capsys.readouterr()
         assert "<unknown>" in captured.err
