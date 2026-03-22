@@ -27,6 +27,8 @@
 | 2113 | PRP | Dataset Deduplication Pipeline |
 | 2114 | CHG | Implement Dataset Annotator |
 | 2115 | CHG | Implement Dataset Deduplicator |
+| 2116 | PRP | BugsInPy Pipeline Validation |
+| 2117 | CHG | Implement BugsInPy Pipeline Validation |
 
 ---
 
