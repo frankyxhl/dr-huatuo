@@ -1,3 +1,52 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dr-huatuo"
+version = "0.2.0"
+description = "Code quality diagnosis toolkit — 5-dimension maintainability profiling for Python"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [
+    { name = "Frank", email = "franky.xhl@gmail.com" },
+]
+keywords = ["code-quality", "static-analysis", "maintainability", "complexity", "linting"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Testing",
+]
+dependencies = [
+    "ruff",
+    "radon",
+    "bandit",
+    "mypy",
+    "pylint",
+    "complexipy",
+    "rich",
+]
+
+[project.optional-dependencies]
+full = ["lcom"]
+research = ["scipy", "datasketch", "scikit-learn"]
+dev = ["pytest", "pytest-cov"]
+
+[project.scripts]
+dr-huatuo = "cli:main"
+
+[project.urls]
+Homepage = "https://github.com/frankyxhl/dr-huatuo"
+Repository = "https://github.com/frankyxhl/dr-huatuo"
+Issues = "https://github.com/frankyxhl/dr-huatuo/issues"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
@@ -6,3 +55,20 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]
+
+[tool.hatch.build]
+exclude = ["data/", "tests/", "rules/", ".claude/", "incomings/", "docs/"]
+include = [
+    "cli.py",
+    "code_analyzer.py",
+    "code_reporter.py",
+    "dataset_annotator.py",
+    "dataset_dedup.py",
+    "quality_profile.py",
+    "scoring_optimizer.py",
+    "bugsinpy_extract.py",
+    "bugsinpy_analysis.py",
+    "example_code.py",
+    "README.md",
+    "LICENSE",
+]
