@@ -1,19 +1,27 @@
+# Python
 .venv/
 __pycache__/
+*.pyc
+*.egg-info/
+
+# Tools cache
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/
 .coverage
-*.pyc
-.DS_Store
-.team/sessions.json
-report.html
-fx_alfred_report.html
-fx_alfred_report.json
-fx_alfred_report.md
-deep-research-report.md
-data/repos/
-data/bugsinpy/
+
+# Build
 dist/
 build/
-*.egg-info/
+
+# OS
+.DS_Store
+
+# Data (extracted, not source)
+data/repos/
+data/bugsinpy/
+
+# Temp
+.team/
+*.html
+!README.md

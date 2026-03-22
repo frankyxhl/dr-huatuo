@@ -41,6 +41,7 @@ dev = ["pytest", "pytest-cov"]
 
 [project.scripts]
 dr-huatuo = "dr_huatuo.cli:main"
+ht = "dr_huatuo.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/frankyxhl/dr-huatuo"
