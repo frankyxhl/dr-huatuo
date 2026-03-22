@@ -981,9 +981,7 @@ class TestTokenizeWarning:
         tok_err = __import__("tokenize").TokenError("mock", (1, 0))
         with patch(tok_path) as mock_tok:
             mock_tok.side_effect = tok_err
-            tokens = _tokenise_and_normalise(
-                "x = 1\n", path="bad_file.py"
-            )
+            tokens = _tokenise_and_normalise("x = 1\n", path="bad_file.py")
 
         captured = capsys.readouterr()
         assert "Warning: tokenize failed for bad_file.py" in captured.err
