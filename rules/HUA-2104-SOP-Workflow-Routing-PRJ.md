@@ -1,7 +1,7 @@
 # SOP-2104: Workflow Routing PRJ
 
 **Applies to:** HUA project
-**Last updated:** 2026-03-20
+**Last updated:** 2026-03-21
 **Last reviewed:** 2026-03-20
 **Status:** Active
 
@@ -81,6 +81,20 @@ After routing through COR-1103, check these HUA-specific branches:
    └── CHG (COR-1101)
        └── This file is intentionally flawed for demo purposes
        └── Covered by make lint — must remain lint-clean
+
+9. Research / dataset work? (analyzing external Python code datasets)
+   ├── New research direction or new module/component needed?
+   │   └── PRP (COR-1102) → Review (COR-1602 strict)
+   ├── Incomings research report (raw input from external LLMs/research)?
+   │   └── Drop into incomings/ as-is — read-only reference material
+   │   └── Create a PRP (COR-1102) to propose how to act on the report
+   ├── Analysis script or experiment that uses the existing analyzers?
+   │   └── CHG (COR-1101)
+   │       └── Scripts must pass make lint if added to Makefile scope
+   │       └── Do NOT modify core analyzer scoring for research-only needs
+   └── Dataset pipeline or new output format for research consumers?
+       └── PRP (COR-1102) → Review (COR-1602 strict)
+           └── JSON output changes are breaking — flag as such
 ```
 
 ---
@@ -105,15 +119,18 @@ make check (lint + test) must pass before any change is complete
 ## Project Context
 
 - **Prefix:** HUA
-- **Python:** 3.12, venv at `.venv/`
+- **Python:** 3.13, venv at `.venv/`
 - **Analysis tools:** ruff, radon, bandit, mypy (both analyzers), pylint (code_analyzer.py only)
-- **Test entry point:** `make test` (78 tests via pytest)
+- **Test entry point:** `make test` (139 tests via pytest)
 - **Lint entry point:** `make lint` (ruff, rules E/F/W/I, covers code_analyzer.py, code_reporter.py, example_code.py, tests/)
 - **Key documents:**
   - HUA-2100-PRP: Test infrastructure design (Implemented)
   - HUA-2101-ADR: English-only codebase policy (Accepted)
   - HUA-2102-CHG: Test infrastructure implementation (Completed)
   - HUA-2103-CHG: Ruff violations + English migration (Completed)
+  - HUA-2105-CHG: Fix type errors (Completed)
+  - HUA-2106-CHG: Reduce complexity hotspots (Completed)
+  - HUA-2108-CHG: Restore accidentally deleted example_code.py (Completed)
 
 ---
 
@@ -126,3 +143,4 @@ make check (lint + test) must pass before any change is complete
 | 2026-03-20 | R2 revision: correct helper count to 7 with all names listed, add positional path arg to CLI description, add _check_tools and print_report to new-tool touch points | Frank + Claude Code |
 | 2026-03-20 | R3 revision: fix golden rules "6 helpers" → "7 helpers" to match decision tree | Frank + Claude Code |
 | 2026-03-20 | Approved: Codex 9.5/10 (R4), Gemini 9.6/10 (R2) | Frank + Claude Code |
+| 2026-03-21 | Add branch 9 (research/dataset work), fix Python 3.12→3.13, update test count 78→139, add recent CHGs to key documents | Claude Code |

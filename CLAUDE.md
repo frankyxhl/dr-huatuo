@@ -9,7 +9,7 @@ Huatuo (华佗) is a Python code quality analysis toolkit. It orchestrates multi
 ## Commands
 
 ```bash
-# Activate venv (Python 3.12)
+# Activate venv (Python 3.13)
 source .venv/bin/activate
 
 # Analyze a single file
@@ -26,6 +26,10 @@ python code_reporter.py <path> -e .venv __pycache__ .git
 
 # Run the example code (intentionally flawed, for demo purposes)
 python code_analyzer.py example_code.py
+
+# Run a single test file or specific test
+.venv/bin/pytest tests/test_analyzer_scoring.py -v
+.venv/bin/pytest tests/test_analyzer_scoring.py::TestCalculateScore::test_all_zeros_score_100 -v
 
 # Makefile targets (work without venv activation)
 make test          # Run all tests (pytest)
@@ -56,11 +60,19 @@ Two main modules with distinct roles:
 
 ### Scoring System
 
-Score starts at 100, deductions: ruff violations (-2 each, max -30), complexity >10 (-3-5 per unit, max -20-25), bandit HIGH (-15 each, max -30), bandit MEDIUM (-5 each, max -15), mypy errors (-1 each, max -10). Grades: A (90+), B (80+), C (70+), D (60+), F (<60).
+Score starts at 100, deductions: ruff violations (-2 each, max -30), complexity >10 (`(cc-10)*5`, max -20), bandit HIGH (-15 each, max -30), bandit MEDIUM (-5 each, max -15), mypy errors (-1 each, max -10). Floor at 0. Grades: A (90+), B (80+), C (70+), D (60+), F (<60). Grade labels include English description, e.g. `"A (Excellent)"`, `"F (Fail)"`.
 
 ### Key Pattern
 
 Both modules shell out to analysis tools via `subprocess.run()` with JSON output flags, parse the JSON results, and aggregate into dataclasses. The `code_reporter.py` version additionally uses Python's `ast` module to provide per-function complexity breakdowns showing exact branch points.
+
+### Testing Pattern
+
+Unit tests avoid the `_check_tools()` subprocess calls by instantiating `CodeAnalyzer` via `object.__new__(CodeAnalyzer)` (bypassing `__init__`). See `tests/conftest.py` for shared fixtures covering both `CodeMetrics` and `FileMetrics`. Note that `code_analyzer.py` and `code_reporter.py` define **separate** `CodeAnalyzer` classes with different field names (`max_cyclomatic_complexity` vs `max_complexity`).
+
+### Reference Document
+
+`tools_integration_reference.md` — technical reference for each tool's CLI flags, JSON output schema, and Python integration examples. Written in Chinese (predates the Code Language Policy).
 
 ## Code Language Policy
 
