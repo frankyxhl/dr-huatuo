@@ -29,6 +29,15 @@
 | 2115 | CHG | Implement Dataset Deduplicator |
 | 2116 | PRP | BugsInPy Pipeline Validation |
 | 2117 | CHG | Implement BugsInPy Pipeline Validation |
+| 2118 | PRP | AutoResearch Skill Integration |
+| 2119 | PRP | AutoResearch LLM Prompt Optimization |
+| 2120 | CHG | Implement Scoring Formula Optimizer |
+| 2121 | REF | ML Baseline Experiment Results |
+| 2122 | PRP | Multi Dimensional Maintainability Rating |
+| 2123 | CHG | Implement Quality Profile |
+| 2124 | PRP | Unified CLI and Report Integration |
+| 2125 | CHG | Implement Unified CLI |
+| 2126 | CHG | HTML Report Complexity Drilldown |
 
 ---
 

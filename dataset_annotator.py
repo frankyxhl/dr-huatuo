@@ -20,6 +20,8 @@ from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from typing import Iterator, Optional
 
+from quality_profile import profile_file
+
 SCHEMA_VERSION = "1.0"
 ANNOTATOR_VERSION = "0.1.0"
 
@@ -294,9 +296,7 @@ class DatasetAnnotator:
 
         for name, cmd in tools_cmds.items():
             try:
-                result = subprocess.run(
-                    cmd, capture_output=True, text=True, timeout=10
-                )
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
                 version_str = result.stdout.strip().split("\n")[0]
                 # Extract version number from output
                 match = re.search(r"[\d]+\.[\d]+\.[\d]+", version_str)
@@ -447,12 +447,8 @@ class DatasetAnnotator:
             if result.stdout:
                 data = json.loads(result.stdout)
                 results = data.get("results", [])
-                high = sum(
-                    1 for r in results if r.get("issue_severity") == "HIGH"
-                )
-                medium = sum(
-                    1 for r in results if r.get("issue_severity") == "MEDIUM"
-                )
+                high = sum(1 for r in results if r.get("issue_severity") == "HIGH")
+                medium = sum(1 for r in results if r.get("issue_severity") == "MEDIUM")
                 return high, medium, None
             return 0, 0, None
         except subprocess.TimeoutExpired:
@@ -642,9 +638,7 @@ class DatasetAnnotator:
     # Main annotation method
     # ---------------------------------------------------------------
 
-    def annotate_file(
-        self, path: str, source: str = "", license: str = ""
-    ) -> dict:
+    def annotate_file(self, path: str, source: str = "", license: str = "") -> dict:
         """Annotate a single Python file.
 
         Args:
@@ -777,6 +771,10 @@ class DatasetAnnotator:
         # Apply data_warnings heuristics
         record["data_warnings"] = self._compute_data_warnings(record)
 
+        # Quality profile (multi-dimensional rating)
+        qp = profile_file(record)
+        record.update(qp.to_flat_dict())
+
         # Tier 2 fields (--full only)
         if self.full:
             record.update(self._tier2_fields(src, tree))
@@ -832,9 +830,7 @@ class DatasetAnnotator:
             if lcom4_values:
                 result["lcom4_approx"] = max(lcom4_values)
             if lcom5_values:
-                result["lcom5_hs"] = round(
-                    sum(lcom5_values) / len(lcom5_values), 4
-                )
+                result["lcom5_hs"] = round(sum(lcom5_values) / len(lcom5_values), 4)
 
         except ImportError:
             if self.full:
@@ -859,9 +855,7 @@ class DatasetAnnotator:
             "isolated": self.isolated,
         }
 
-    def _iter_tasks_parallel(
-        self, tasks: list[tuple[str, str, str]]
-    ) -> Iterator[dict]:
+    def _iter_tasks_parallel(self, tasks: list[tuple[str, str, str]]) -> Iterator[dict]:
         """Process a list of (path, source, license) tasks in parallel.
 
         Preserves output order using executor.map.
@@ -955,7 +949,8 @@ if __name__ == "__main__":
         help="Directory of .py files or JSONL manifest",
     )
     parser.add_argument(
-        "-o", "--output",
+        "-o",
+        "--output",
         required=True,
         help="Output JSONL file path",
     )
@@ -998,7 +993,8 @@ if __name__ == "__main__":
         help="Per-tool subprocess timeout in seconds",
     )
     parser.add_argument(
-        "-e", "--exclude",
+        "-e",
+        "--exclude",
         nargs="*",
         default=[],
         help="Directory names to exclude",
@@ -1017,9 +1013,7 @@ if __name__ == "__main__":
     if input_path.suffix == ".jsonl":
         records = annotator.annotate_manifest(str(input_path))
     else:
-        records = annotator.annotate_directory(
-            str(input_path), exclude=args.exclude
-        )
+        records = annotator.annotate_directory(str(input_path), exclude=args.exclude)
 
     count = 0
     with open(args.output, "w", encoding="utf-8") as out:

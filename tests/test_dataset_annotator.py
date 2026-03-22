@@ -37,13 +37,16 @@ class TestCalculateScore:
     """Standalone _calculate_score must match CodeAnalyzer formula."""
 
     def test_all_zeros_score_100(self):
-        assert _calculate_score(
-            ruff_violations=0,
-            cyclomatic_complexity=0,
-            bandit_high=0,
-            bandit_medium=0,
-            mypy_errors=0,
-        ) == 100.0
+        assert (
+            _calculate_score(
+                ruff_violations=0,
+                cyclomatic_complexity=0,
+                bandit_high=0,
+                bandit_medium=0,
+                mypy_errors=0,
+            )
+            == 100.0
+        )
 
     def test_ruff_single_violation(self):
         assert _calculate_score(ruff_violations=1) == 98.0
@@ -322,9 +325,7 @@ class TestSchemaValidation:
     def simple_py_file(self, tmp_path):
         """Create a simple Python file for testing."""
         f = tmp_path / "simple.py"
-        f.write_text(
-            'def hello():\n    """Say hello."""\n    return "hello"\n'
-        )
+        f.write_text('def hello():\n    """Say hello."""\n    return "hello"\n')
         return f
 
     @pytest.fixture
@@ -349,21 +350,15 @@ class TestSchemaValidation:
             with patch.object(
                 annotator, "_run_radon_cc_subprocess", return_value=(8, 1, None)
             ):
-                with patch.object(
-                    annotator, "_run_bandit", return_value=(0, 0, None)
-                ):
-                    with patch.object(
-                        annotator, "_run_mypy", return_value=(0, None)
-                    ):
+                with patch.object(annotator, "_run_bandit", return_value=(0, 0, None)):
+                    with patch.object(annotator, "_run_mypy", return_value=(0, None)):
                         with patch.object(
                             annotator, "_run_pylint", return_value=(8.5, None)
                         ):
-                            record = annotator.annotate_file(
-                                str(simple_py_file)
-                            )
-        assert TIER_1_FIELDS.issubset(
-            record.keys()
-        ), f"Missing fields: {TIER_1_FIELDS - record.keys()}"
+                            record = annotator.annotate_file(str(simple_py_file))
+        assert TIER_1_FIELDS.issubset(record.keys()), (
+            f"Missing fields: {TIER_1_FIELDS - record.keys()}"
+        )
 
     def test_tier2_fields_absent_without_full(self, annotator, simple_py_file):
         """Tier 2 fields must NOT be present without --full."""
@@ -371,18 +366,12 @@ class TestSchemaValidation:
             with patch.object(
                 annotator, "_run_radon_cc_subprocess", return_value=(8, 1, None)
             ):
-                with patch.object(
-                    annotator, "_run_bandit", return_value=(0, 0, None)
-                ):
-                    with patch.object(
-                        annotator, "_run_mypy", return_value=(0, None)
-                    ):
+                with patch.object(annotator, "_run_bandit", return_value=(0, 0, None)):
+                    with patch.object(annotator, "_run_mypy", return_value=(0, None)):
                         with patch.object(
                             annotator, "_run_pylint", return_value=(8.5, None)
                         ):
-                            record = annotator.annotate_file(
-                                str(simple_py_file)
-                            )
+                            record = annotator.annotate_file(str(simple_py_file))
         for field in TIER_2_FIELDS:
             assert field not in record, f"Tier 2 field {field} found without --full"
 
@@ -391,18 +380,12 @@ class TestSchemaValidation:
             with patch.object(
                 annotator, "_run_radon_cc_subprocess", return_value=(8, 1, None)
             ):
-                with patch.object(
-                    annotator, "_run_bandit", return_value=(0, 0, None)
-                ):
-                    with patch.object(
-                        annotator, "_run_mypy", return_value=(0, None)
-                    ):
+                with patch.object(annotator, "_run_bandit", return_value=(0, 0, None)):
+                    with patch.object(annotator, "_run_mypy", return_value=(0, None)):
                         with patch.object(
                             annotator, "_run_pylint", return_value=(8.5, None)
                         ):
-                            record = annotator.annotate_file(
-                                str(simple_py_file)
-                            )
+                            record = annotator.annotate_file(str(simple_py_file))
         assert record["schema_version"] == SCHEMA_VERSION
         assert record["annotator_version"] == ANNOTATOR_VERSION
 
@@ -412,18 +395,12 @@ class TestSchemaValidation:
             with patch.object(
                 annotator, "_run_radon_cc_subprocess", return_value=(8, 1, None)
             ):
-                with patch.object(
-                    annotator, "_run_bandit", return_value=(0, 0, None)
-                ):
-                    with patch.object(
-                        annotator, "_run_mypy", return_value=(0, None)
-                    ):
+                with patch.object(annotator, "_run_bandit", return_value=(0, 0, None)):
+                    with patch.object(annotator, "_run_mypy", return_value=(0, None)):
                         with patch.object(
                             annotator, "_run_pylint", return_value=(8.5, None)
                         ):
-                            record = annotator.annotate_file(
-                                str(simple_py_file)
-                            )
+                            record = annotator.annotate_file(str(simple_py_file))
         src = simple_py_file.read_text()
         normalized = _normalize_source(src)
         expected_hash = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
@@ -435,18 +412,12 @@ class TestSchemaValidation:
             with patch.object(
                 annotator, "_run_radon_cc_subprocess", return_value=(8, 1, None)
             ):
-                with patch.object(
-                    annotator, "_run_bandit", return_value=(0, 0, None)
-                ):
-                    with patch.object(
-                        annotator, "_run_mypy", return_value=(0, None)
-                    ):
+                with patch.object(annotator, "_run_bandit", return_value=(0, 0, None)):
+                    with patch.object(annotator, "_run_mypy", return_value=(0, None)):
                         with patch.object(
                             annotator, "_run_pylint", return_value=(8.5, None)
                         ):
-                            record = annotator.annotate_file(
-                                str(simple_py_file)
-                            )
+                            record = annotator.annotate_file(str(simple_py_file))
         assert "runtime_env" in record
         env = record["runtime_env"]
         assert "python_version" in env
@@ -490,9 +461,7 @@ class TestNullSemantics:
 
     def test_pylint_null_when_disabled(self, annotator_no_pylint, simple_py_file):
         """pylint_score must be null (not 0.0) when --no-pylint."""
-        with patch.object(
-            annotator_no_pylint, "_run_ruff", return_value=(0, None)
-        ):
+        with patch.object(annotator_no_pylint, "_run_ruff", return_value=(0, None)):
             with patch.object(
                 annotator_no_pylint,
                 "_run_radon_cc_subprocess",
@@ -504,18 +473,14 @@ class TestNullSemantics:
                     with patch.object(
                         annotator_no_pylint, "_run_mypy", return_value=(0, None)
                     ):
-                        record = annotator_no_pylint.annotate_file(
-                            str(simple_py_file)
-                        )
+                        record = annotator_no_pylint.annotate_file(str(simple_py_file))
         assert record["pylint_score"] is None
 
     def test_tool_error_fields_null_on_success(
         self, annotator_no_pylint, simple_py_file
     ):
         """tool_errors must be null when all tools succeed."""
-        with patch.object(
-            annotator_no_pylint, "_run_ruff", return_value=(0, None)
-        ):
+        with patch.object(annotator_no_pylint, "_run_ruff", return_value=(0, None)):
             with patch.object(
                 annotator_no_pylint,
                 "_run_radon_cc_subprocess",
@@ -527,9 +492,7 @@ class TestNullSemantics:
                     with patch.object(
                         annotator_no_pylint, "_run_mypy", return_value=(0, None)
                     ):
-                        record = annotator_no_pylint.annotate_file(
-                            str(simple_py_file)
-                        )
+                        record = annotator_no_pylint.annotate_file(str(simple_py_file))
         assert record["tool_errors"] is None
         assert record["error_type"] is None
         assert record["error_detail"] is None
@@ -660,18 +623,14 @@ class TestPerToolFailure:
                 "_run_radon_cc_subprocess",
                 return_value=(5, 2, None),
             ):
-                with patch.object(
-                    annotator, "_run_bandit", return_value=(0, 1, None)
-                ):
+                with patch.object(annotator, "_run_bandit", return_value=(0, 1, None)):
                     with patch.object(
                         annotator, "_run_mypy", return_value=(None, "timeout")
                     ):
                         with patch.object(
                             annotator, "_run_pylint", return_value=(8.0, None)
                         ):
-                            record = annotator.annotate_file(
-                                str(simple_py_file)
-                            )
+                            record = annotator.annotate_file(str(simple_py_file))
         assert record["ruff_violations"] == 3
         assert record["mypy_errors"] is None
         assert record["tool_errors"] is not None
@@ -691,15 +650,11 @@ class TestPerToolFailure:
                 with patch.object(
                     annotator, "_run_bandit", return_value=(None, None, "timeout")
                 ):
-                    with patch.object(
-                        annotator, "_run_mypy", return_value=(0, None)
-                    ):
+                    with patch.object(annotator, "_run_mypy", return_value=(0, None)):
                         with patch.object(
                             annotator, "_run_pylint", return_value=(8.0, None)
                         ):
-                            record = annotator.annotate_file(
-                                str(simple_py_file)
-                            )
+                            record = annotator.annotate_file(str(simple_py_file))
         assert record["ruff_violations"] is None
         assert record["bandit_high"] is None
         assert record["bandit_medium"] is None
@@ -737,12 +692,8 @@ class TestASTMetrics:
             with patch.object(
                 annotator, "_run_radon_cc_subprocess", return_value=(0, 0, None)
             ):
-                with patch.object(
-                    annotator, "_run_bandit", return_value=(0, 0, None)
-                ):
-                    with patch.object(
-                        annotator, "_run_mypy", return_value=(0, None)
-                    ):
+                with patch.object(annotator, "_run_bandit", return_value=(0, 0, None)):
+                    with patch.object(annotator, "_run_mypy", return_value=(0, None)):
                         with patch.object(
                             annotator, "_run_pylint", return_value=(9.0, None)
                         ):
@@ -756,12 +707,8 @@ class TestASTMetrics:
             with patch.object(
                 annotator, "_run_radon_cc_subprocess", return_value=(0, 0, None)
             ):
-                with patch.object(
-                    annotator, "_run_bandit", return_value=(0, 0, None)
-                ):
-                    with patch.object(
-                        annotator, "_run_mypy", return_value=(0, None)
-                    ):
+                with patch.object(annotator, "_run_bandit", return_value=(0, 0, None)):
+                    with patch.object(annotator, "_run_mypy", return_value=(0, None)):
                         with patch.object(
                             annotator, "_run_pylint", return_value=(9.0, None)
                         ):
@@ -775,12 +722,8 @@ class TestASTMetrics:
             with patch.object(
                 annotator, "_run_radon_cc_subprocess", return_value=(0, 0, None)
             ):
-                with patch.object(
-                    annotator, "_run_bandit", return_value=(0, 0, None)
-                ):
-                    with patch.object(
-                        annotator, "_run_mypy", return_value=(0, None)
-                    ):
+                with patch.object(annotator, "_run_bandit", return_value=(0, 0, None)):
+                    with patch.object(annotator, "_run_mypy", return_value=(0, None)):
                         with patch.object(
                             annotator, "_run_pylint", return_value=(9.0, None)
                         ):
@@ -800,12 +743,8 @@ class TestASTMetrics:
             with patch.object(
                 annotator, "_run_radon_cc_subprocess", return_value=(3, 1, None)
             ):
-                with patch.object(
-                    annotator, "_run_bandit", return_value=(0, 0, None)
-                ):
-                    with patch.object(
-                        annotator, "_run_mypy", return_value=(0, None)
-                    ):
+                with patch.object(annotator, "_run_bandit", return_value=(0, 0, None)):
+                    with patch.object(annotator, "_run_mypy", return_value=(0, None)):
                         with patch.object(
                             annotator, "_run_pylint", return_value=(9.0, None)
                         ):
@@ -820,12 +759,8 @@ class TestASTMetrics:
             with patch.object(
                 annotator, "_run_radon_cc_subprocess", return_value=(0, 0, None)
             ):
-                with patch.object(
-                    annotator, "_run_bandit", return_value=(0, 0, None)
-                ):
-                    with patch.object(
-                        annotator, "_run_mypy", return_value=(0, None)
-                    ):
+                with patch.object(annotator, "_run_bandit", return_value=(0, 0, None)):
+                    with patch.object(annotator, "_run_mypy", return_value=(0, None)):
                         with patch.object(
                             annotator, "_run_pylint", return_value=(9.0, None)
                         ):
@@ -835,19 +770,13 @@ class TestASTMetrics:
 
     def test_fanout_symbols(self, annotator, tmp_path):
         f = tmp_path / "symbols.py"
-        f.write_text(
-            "import os\nfrom os import path, getcwd\nfrom sys import argv\n"
-        )
+        f.write_text("import os\nfrom os import path, getcwd\nfrom sys import argv\n")
         with patch.object(annotator, "_run_ruff", return_value=(0, None)):
             with patch.object(
                 annotator, "_run_radon_cc_subprocess", return_value=(0, 0, None)
             ):
-                with patch.object(
-                    annotator, "_run_bandit", return_value=(0, 0, None)
-                ):
-                    with patch.object(
-                        annotator, "_run_mypy", return_value=(0, None)
-                    ):
+                with patch.object(annotator, "_run_bandit", return_value=(0, 0, None)):
+                    with patch.object(annotator, "_run_mypy", return_value=(0, None)):
                         with patch.object(
                             annotator, "_run_pylint", return_value=(9.0, None)
                         ):
@@ -862,12 +791,8 @@ class TestASTMetrics:
             with patch.object(
                 annotator, "_run_radon_cc_subprocess", return_value=(0, 0, None)
             ):
-                with patch.object(
-                    annotator, "_run_bandit", return_value=(0, 0, None)
-                ):
-                    with patch.object(
-                        annotator, "_run_mypy", return_value=(0, None)
-                    ):
+                with patch.object(annotator, "_run_bandit", return_value=(0, 0, None)):
+                    with patch.object(annotator, "_run_mypy", return_value=(0, None)):
                         with patch.object(
                             annotator, "_run_pylint", return_value=(9.0, None)
                         ):
@@ -877,20 +802,13 @@ class TestASTMetrics:
 
     def test_docstring_density(self, annotator, tmp_path):
         f = tmp_path / "docstrings.py"
-        f.write_text(
-            'def foo():\n    """Doc."""\n    pass\n\n'
-            "def bar():\n    pass\n"
-        )
+        f.write_text('def foo():\n    """Doc."""\n    pass\n\ndef bar():\n    pass\n')
         with patch.object(annotator, "_run_ruff", return_value=(0, None)):
             with patch.object(
                 annotator, "_run_radon_cc_subprocess", return_value=(1, 2, None)
             ):
-                with patch.object(
-                    annotator, "_run_bandit", return_value=(0, 0, None)
-                ):
-                    with patch.object(
-                        annotator, "_run_mypy", return_value=(0, None)
-                    ):
+                with patch.object(annotator, "_run_bandit", return_value=(0, 0, None)):
+                    with patch.object(annotator, "_run_mypy", return_value=(0, None)):
                         with patch.object(
                             annotator, "_run_pylint", return_value=(9.0, None)
                         ):
@@ -905,12 +823,8 @@ class TestASTMetrics:
             with patch.object(
                 annotator, "_run_radon_cc_subprocess", return_value=(0, 0, None)
             ):
-                with patch.object(
-                    annotator, "_run_bandit", return_value=(0, 0, None)
-                ):
-                    with patch.object(
-                        annotator, "_run_mypy", return_value=(0, None)
-                    ):
+                with patch.object(annotator, "_run_bandit", return_value=(0, 0, None)):
+                    with patch.object(annotator, "_run_mypy", return_value=(0, None)):
                         with patch.object(
                             annotator, "_run_pylint", return_value=(9.0, None)
                         ):
@@ -962,12 +876,8 @@ class TestDataWarnings:
                 "_run_radon_cc_subprocess",
                 return_value=(0, 0, None),
             ):
-                with patch.object(
-                    annotator, "_run_bandit", return_value=(0, 0, None)
-                ):
-                    with patch.object(
-                        annotator, "_run_mypy", return_value=(10, None)
-                    ):
+                with patch.object(annotator, "_run_bandit", return_value=(0, 0, None)):
+                    with patch.object(annotator, "_run_mypy", return_value=(10, None)):
                         with patch.object(
                             annotator, "_run_pylint", return_value=(8.0, None)
                         ):
@@ -984,12 +894,8 @@ class TestDataWarnings:
                 "_run_radon_cc_subprocess",
                 return_value=(1, 1, None),
             ):
-                with patch.object(
-                    annotator, "_run_bandit", return_value=(0, 0, None)
-                ):
-                    with patch.object(
-                        annotator, "_run_mypy", return_value=(0, None)
-                    ):
+                with patch.object(annotator, "_run_bandit", return_value=(0, 0, None)):
+                    with patch.object(annotator, "_run_mypy", return_value=(0, None)):
                         with patch.object(
                             annotator, "_run_pylint", return_value=(9.0, None)
                         ):
@@ -1009,12 +915,8 @@ class TestDataWarnings:
                 # Radon returns 0 cc and 0 func_count (no functions found)
                 return_value=(0, 0, None),
             ):
-                with patch.object(
-                    annotator, "_run_bandit", return_value=(0, 0, None)
-                ):
-                    with patch.object(
-                        annotator, "_run_mypy", return_value=(0, None)
-                    ):
+                with patch.object(annotator, "_run_bandit", return_value=(0, 0, None)):
+                    with patch.object(annotator, "_run_mypy", return_value=(0, None)):
                         with patch.object(
                             annotator, "_run_pylint", return_value=(9.0, None)
                         ):
@@ -1036,12 +938,8 @@ class TestDataWarnings:
                 "_run_radon_cc_subprocess",
                 return_value=(1, 1, None),
             ):
-                with patch.object(
-                    annotator, "_run_bandit", return_value=(0, 0, None)
-                ):
-                    with patch.object(
-                        annotator, "_run_mypy", return_value=(0, None)
-                    ):
+                with patch.object(annotator, "_run_bandit", return_value=(0, 0, None)):
+                    with patch.object(annotator, "_run_mypy", return_value=(0, None)):
                         with patch.object(
                             annotator, "_run_pylint", return_value=(0.0, None)
                         ):
@@ -1093,9 +991,7 @@ class TestAnnotateDirectory:
     def test_excludes_directories(self, annotator, py_dir):
         with patch.object(annotator, "annotate_file") as mock_af:
             mock_af.return_value = {"path": "test.py"}
-            list(
-                annotator.annotate_directory(str(py_dir), exclude=["sub"])
-            )
+            list(annotator.annotate_directory(str(py_dir), exclude=["sub"]))
         assert mock_af.call_count == 2  # only a.py and b.py
 
 
@@ -1194,12 +1090,8 @@ class TestSourceLicensePropagation:
             with patch.object(
                 annotator, "_run_radon_cc_subprocess", return_value=(0, 0, None)
             ):
-                with patch.object(
-                    annotator, "_run_bandit", return_value=(0, 0, None)
-                ):
-                    with patch.object(
-                        annotator, "_run_mypy", return_value=(0, None)
-                    ):
+                with patch.object(annotator, "_run_bandit", return_value=(0, 0, None)):
+                    with patch.object(annotator, "_run_mypy", return_value=(0, None)):
                         with patch.object(
                             annotator, "_run_pylint", return_value=(9.0, None)
                         ):
@@ -1218,12 +1110,8 @@ class TestSourceLicensePropagation:
             with patch.object(
                 annotator, "_run_radon_cc_subprocess", return_value=(0, 0, None)
             ):
-                with patch.object(
-                    annotator, "_run_bandit", return_value=(0, 0, None)
-                ):
-                    with patch.object(
-                        annotator, "_run_mypy", return_value=(0, None)
-                    ):
+                with patch.object(annotator, "_run_bandit", return_value=(0, 0, None)):
+                    with patch.object(annotator, "_run_mypy", return_value=(0, None)):
                         with patch.object(
                             annotator, "_run_pylint", return_value=(9.0, None)
                         ):

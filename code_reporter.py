@@ -109,6 +109,12 @@ class CodeAnalyzer:
             metrics.avg_complexity = radon_result.get("avg", 0)
             metrics.func_count = radon_result.get("count", 0)
             metrics.complexity_hotspots = radon_result.get("hotspots", [])
+            # Enrich per-file hotspots with breakdown
+            for spot in metrics.complexity_hotspots:
+                spot["_file"] = str(file_path)
+                spot["breakdown"] = self._analyze_complexity_breakdown(
+                    file_path, spot
+                )
 
         # Bandit
         if self.available_tools.get("bandit"):
@@ -226,6 +232,15 @@ class CodeAnalyzer:
             all_complexity,
             key=lambda x: -x.get("complexity", 0),
         )[:10]
+
+        # Enrich top hotspots with branch-level breakdown
+        analyzer = CodeAnalyzer.__new__(CodeAnalyzer)
+        for spot in report.complexity_hotspots:
+            spot["_file"] = spot.get("file", "")
+            spot["breakdown"] = analyzer._analyze_complexity_breakdown(
+                Path(report.project_path), spot
+            )
+
         report.security_hotspots = all_security[:10]
         report.type_hotspots = all_type[:10]
 
@@ -389,12 +404,42 @@ class CodeAnalyzer:
                     )
                     self.generic_visit(node)
 
-                def visit_comprehension(self, node):
+                def visit_ListComp(self, node):
                     self.branches.append(
                         {
                             "type": "comprehension",
                             "line": node.lineno,
-                            "description": ("list/dict/set comprehension"),
+                            "description": "list comprehension",
+                        }
+                    )
+                    self.generic_visit(node)
+
+                def visit_SetComp(self, node):
+                    self.branches.append(
+                        {
+                            "type": "comprehension",
+                            "line": node.lineno,
+                            "description": "set comprehension",
+                        }
+                    )
+                    self.generic_visit(node)
+
+                def visit_DictComp(self, node):
+                    self.branches.append(
+                        {
+                            "type": "comprehension",
+                            "line": node.lineno,
+                            "description": "dict comprehension",
+                        }
+                    )
+                    self.generic_visit(node)
+
+                def visit_GeneratorExp(self, node):
+                    self.branches.append(
+                        {
+                            "type": "comprehension",
+                            "line": node.lineno,
+                            "description": "generator expression",
                         }
                     )
                     self.generic_visit(node)
@@ -417,7 +462,7 @@ class CodeAnalyzer:
             start_line = target_func.lineno
             end_line = target_func.end_lineno or start_line + 20
             code_snippet = "\n".join(
-                lines[start_line - 1 : min(end_line, start_line + 30)]
+                lines[start_line - 1 : end_line]
             )
 
             return {
@@ -1607,16 +1652,100 @@ id="file-details-' + i + '">';
             if (f.complexity_hotspots \
 && f.complexity_hotspots.length > 0) {{
                 html += '<div class="detail-item">\
-<h5>Complexity Hotspots</h5><ul>';
-                f.complexity_hotspots.forEach(s => {{
+<h5>Complexity Hotspots</h5>';
+                f.complexity_hotspots.forEach((s, idx) => {{
                     const ccClass = s.complexity > 20 \
-? 'complexity-high' : 'complexity-medium';
-                    html += '<li><span class="' \
-+ ccClass + '">' + s.complexity \
-+ '</span> - ' + s.name \
-+ ' (L' + s.line + ')</li>';
+? 'complexity-high' : s.complexity > 10 \
+? 'complexity-medium' : 'complexity-low';
+                    const bd = s.breakdown || {{}};
+                    const hasBd = bd.branches \
+&& bd.branches.length > 0;
+                    html += '<details style="\
+margin-bottom: 0.5rem;">';
+                    html += '<summary style="\
+cursor: pointer; padding: 0.25rem 0;">';
+                    html += '<span class="' + ccClass \
++ '">' + s.complexity + '</span> - ' \
++ s.name + ' (L' + s.line + ')';
+                    html += '</summary>';
+                    if (hasBd) {{
+                        html += '<div style="\
+padding: 0.5rem; margin-left: 1rem; \
+font-size: 0.85rem;">';
+                        html += '<p style="color: \
+var(--text-secondary);">CC = 1 (base) + ' \
++ bd.branch_count + ' (branches) = <strong>' \
++ bd.calculated_complexity + '</strong></p>';
+                        if (bd.type_breakdown) {{
+                            const types = Object.entries(\
+bd.type_breakdown).map(([k,v]) => k+': '+v).join(' | ');
+                            html += '<p style="color: \
+var(--text-secondary);">' + types + '</p>';
+                        }}
+                        html += '<table style="width: 100%; \
+font-size: 0.8rem; margin: 0.5rem 0;">';
+                        html += '<thead><tr style="\
+border-bottom: 1px solid var(--border-color);">\
+<th style="text-align:left;padding:0.2rem;">Line</th>\
+<th style="text-align:left;padding:0.2rem;">Type</th>\
+<th style="text-align:left;padding:0.2rem;">Description\
+</th></tr></thead><tbody>';
+                        bd.branches.slice(0,25).forEach(\
+bp => {{
+                            html += '<tr style="\
+border-bottom: 1px solid var(--border-color);">';
+                            html += '<td style="\
+padding:0.2rem;">' + bp.line + '</td>';
+                            html += '<td style="\
+padding:0.2rem;"><code>' + bp.type + '</code></td>';
+                            html += '<td style="\
+padding:0.2rem;">' + bp.description + '</td>';
+                            html += '</tr>';
+                        }});
+                        html += '</tbody></table>';
+                        if (bd.code_snippet) {{
+                            html += '<details style="\
+margin-top: 0.5rem;">';
+                            html += '<summary style="\
+cursor:pointer; color: var(--text-secondary); \
+font-size: 0.8rem;">Show source code</summary>';
+                            const lines = \
+bd.code_snippet.split('\\n');
+                            const startLine = \
+bd.start_line || 1;
+                            const branchLines = \
+new Set(bd.branches.map(b => b.line));
+                            let codeHtml = '';
+                            lines.forEach((line, li) => {{
+                                const ln = startLine + li;
+                                const hl = branchLines.has(ln) \
+? 'background:rgba(255,165,0,0.15);' : '';
+                                const escaped = line\
+.replace(/&/g,'&amp;')\
+.replace(/</g,'&lt;')\
+.replace(/>/g,'&gt;');
+                                codeHtml += '<span style="\
+color:var(--text-secondary);user-select:none;' \
++ hl + '">' \
++ String(ln).padStart(4) + '</span>  ' \
++ escaped + '\\n';
+                            }});
+                            html += '<pre style="\
+background:var(--bg-secondary); padding:0.75rem; \
+border-radius:4px; overflow-x:auto; \
+font-size:0.8rem; line-height:1.4; \
+max-height:400px; overflow-y:auto;">' \
++ codeHtml + '</pre></details>';
+                        }}
+                        html += '</div>';
+                    }} else {{
+                        html += '<p style="color: \
+var(--text-secondary); margin-left: 1rem; \
+font-size: 0.85rem;">No breakdown data</p>';
+                    }}
+                    html += '</details>';
                 }});
-                html += '</ul></div>';
+                html += '</div>';
             }}
 
             // Ruff Issues
@@ -1942,6 +2071,45 @@ document.body.getAttribute(\
                     f"... {remaining} more"
                     " branch points</p>"
                 )
+
+        # Source code snippet
+        code_snippet = breakdown.get("code_snippet", "")
+        if code_snippet:
+            import html as html_mod
+
+            start_line = breakdown.get("start_line", 1)
+            escaped = html_mod.escape(code_snippet)
+            numbered_lines = []
+            for i, line in enumerate(escaped.split("\n")):
+                lineno = start_line + i
+                # Highlight lines that are branch points
+                branch_lines = {bp.get("line") for bp in branches}
+                style = (
+                    "background: rgba(255, 165, 0, 0.15);"
+                    if lineno in branch_lines
+                    else ""
+                )
+                numbered_lines.append(
+                    f'<span style="color: var(--text-secondary);'
+                    f' user-select: none; {style}">'
+                    f"{lineno:4d}</span>  {line}"
+                )
+            html += (
+                '<details style="margin-top: 0.75rem;">'
+                "<summary"
+                ' style="cursor: pointer;'
+                " color: var(--text-secondary);"
+                ' font-size: 0.85rem;">'
+                "Show source code</summary>\n"
+                '<pre style="background: var(--bg-secondary);'
+                " padding: 0.75rem;"
+                " border-radius: 4px;"
+                " overflow-x: auto;"
+                " font-size: 0.8rem;"
+                ' line-height: 1.4;">'
+                + "\n".join(numbered_lines)
+                + "</pre></details>"
+            )
 
         html += "</div>"
         return html

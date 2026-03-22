@@ -524,9 +524,7 @@ class TestRenderHtmlStructure:
         html = renderer.render_html(sample_report)
         assert 'id="files-data"' in html
         # Extract and parse the JSON blob
-        start = html.index('type="application/json">') + len(
-            'type="application/json">'
-        )
+        start = html.index('type="application/json">') + len('type="application/json">')
         end = html.index("</script>", start)
         blob = html[start:end]
         data = json.loads(blob)
