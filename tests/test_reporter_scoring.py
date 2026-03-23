@@ -43,20 +43,20 @@ class TestCalculateScore:
     # --- Ruff violations: -2 each, capped at 30 ---
 
     def test_ruff_single_violation(self, analyzer):
-        m = FileMetrics(file_path="t.py", ruff_violations=1)
+        m = FileMetrics(file_path="t.py", lint_violations=1)
         assert analyzer._calculate_score(m) == 98.0
 
     def test_ruff_deduction_below_cap(self, analyzer):
-        m = FileMetrics(file_path="t.py", ruff_violations=10)
+        m = FileMetrics(file_path="t.py", lint_violations=10)
         assert analyzer._calculate_score(m) == 80.0
 
     def test_ruff_deduction_at_cap(self, analyzer):
-        m = FileMetrics(file_path="t.py", ruff_violations=15)
+        m = FileMetrics(file_path="t.py", lint_violations=15)
         # 15 * 2 = 30, exactly at cap
         assert analyzer._calculate_score(m) == 70.0
 
     def test_ruff_deduction_over_cap(self, analyzer):
-        m = FileMetrics(file_path="t.py", ruff_violations=20)
+        m = FileMetrics(file_path="t.py", lint_violations=20)
         # 20 * 2 = 40, capped at 30
         assert analyzer._calculate_score(m) == 70.0
 
@@ -88,46 +88,46 @@ class TestCalculateScore:
 
     # --- Bandit HIGH: -15 each, capped at 30 ---
 
-    def test_bandit_high_single(self, analyzer):
-        m = FileMetrics(file_path="t.py", bandit_high=1)
+    def test_security_high_single(self, analyzer):
+        m = FileMetrics(file_path="t.py", security_high=1)
         assert analyzer._calculate_score(m) == 85.0
 
-    def test_bandit_high_at_cap(self, analyzer):
-        m = FileMetrics(file_path="t.py", bandit_high=2)
+    def test_security_high_at_cap(self, analyzer):
+        m = FileMetrics(file_path="t.py", security_high=2)
         assert analyzer._calculate_score(m) == 70.0
 
-    def test_bandit_high_over_cap(self, analyzer):
-        m = FileMetrics(file_path="t.py", bandit_high=3)
+    def test_security_high_over_cap(self, analyzer):
+        m = FileMetrics(file_path="t.py", security_high=3)
         # 3 * 15 = 45, capped at 30
         assert analyzer._calculate_score(m) == 70.0
 
     # --- Bandit MEDIUM: -5 each, capped at 15 ---
 
-    def test_bandit_medium_single(self, analyzer):
-        m = FileMetrics(file_path="t.py", bandit_medium=1)
+    def test_security_medium_single(self, analyzer):
+        m = FileMetrics(file_path="t.py", security_medium=1)
         assert analyzer._calculate_score(m) == 95.0
 
-    def test_bandit_medium_at_cap(self, analyzer):
-        m = FileMetrics(file_path="t.py", bandit_medium=3)
+    def test_security_medium_at_cap(self, analyzer):
+        m = FileMetrics(file_path="t.py", security_medium=3)
         assert analyzer._calculate_score(m) == 85.0
 
-    def test_bandit_medium_over_cap(self, analyzer):
-        m = FileMetrics(file_path="t.py", bandit_medium=5)
+    def test_security_medium_over_cap(self, analyzer):
+        m = FileMetrics(file_path="t.py", security_medium=5)
         # 5 * 5 = 25, capped at 15
         assert analyzer._calculate_score(m) == 85.0
 
     # --- Mypy errors: -1 each, capped at 10 ---
 
     def test_mypy_single_error(self, analyzer):
-        m = FileMetrics(file_path="t.py", mypy_errors=1)
+        m = FileMetrics(file_path="t.py", type_errors=1)
         assert analyzer._calculate_score(m) == 99.0
 
     def test_mypy_at_cap(self, analyzer):
-        m = FileMetrics(file_path="t.py", mypy_errors=10)
+        m = FileMetrics(file_path="t.py", type_errors=10)
         assert analyzer._calculate_score(m) == 90.0
 
     def test_mypy_over_cap(self, analyzer):
-        m = FileMetrics(file_path="t.py", mypy_errors=15)
+        m = FileMetrics(file_path="t.py", type_errors=15)
         assert analyzer._calculate_score(m) == 90.0
 
     # --- Floor at 0: all caps hit simultaneously ---
@@ -141,11 +141,11 @@ class TestCalculateScore:
         """Explicitly max all dimensions to exceed 100 deductions."""
         m = FileMetrics(
             file_path="t.py",
-            ruff_violations=20,  # cap 30
+            lint_violations=20,  # cap 30
             max_complexity=30,  # cap 20
-            bandit_high=3,  # cap 30
-            bandit_medium=5,  # cap 15
-            mypy_errors=15,  # cap 10
+            security_high=3,  # cap 30
+            security_medium=5,  # cap 15
+            type_errors=15,  # cap 10
         )
         # Total deductions: 30 + 20 + 30 + 15 + 10 = 105
         # 100 - 105 = -5, floored to 0

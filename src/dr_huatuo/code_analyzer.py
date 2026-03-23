@@ -3,6 +3,8 @@ Python code quality analyzer.
 Supports multi-dimensional quality analysis of single files or directories.
 """
 
+import functools
+import inspect
 import json
 import os
 import re
@@ -12,6 +14,14 @@ import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Optional
+
+_FIELD_ALIASES = {
+    "ruff_violations": "lint_violations",
+    "pylint_score": "linter_score",
+    "mypy_errors": "type_errors",
+    "bandit_high": "security_high",
+    "bandit_medium": "security_medium",
+}
 
 
 @dataclass
@@ -24,18 +34,18 @@ class CodeMetrics:
     max_cyclomatic_complexity: int = 0
     functions_analyzed: int = 0
 
-    # Lint
-    ruff_violations: int = 0
+    # Lint (generic names)
+    lint_violations: int = 0
     ruff_errors: list[Any] = field(default_factory=list)
-    pylint_score: float = 0.0
+    linter_score: float = 0.0
 
-    # Types
-    mypy_errors: int = 0
+    # Types (generic name)
+    type_errors: int = 0
     mypy_warnings: list[Any] = field(default_factory=list)
 
-    # Security
-    bandit_high: int = 0
-    bandit_medium: int = 0
+    # Security (generic names)
+    security_high: int = 0
+    security_medium: int = 0
     bandit_issues: list[Any] = field(default_factory=list)
 
     # Overall grade
@@ -44,6 +54,36 @@ class CodeMetrics:
 
     def to_dict(self) -> dict:
         return asdict(self)
+
+    def __getattr__(self, name: str) -> Any:
+        """Backward-compat aliases for old field names (attribute access)."""
+        if name in _FIELD_ALIASES:
+            import warnings
+
+            warnings.warn(
+                f"CodeMetrics.{name} is deprecated, use {_FIELD_ALIASES[name]}",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return getattr(self, _FIELD_ALIASES[name])
+        raise AttributeError(f"'CodeMetrics' has no attribute '{name}'")
+
+
+# Wrap __init__ to accept old field names as kwargs
+_original_init = CodeMetrics.__init__
+_original_sig = inspect.signature(_original_init)
+
+
+@functools.wraps(_original_init)
+def _compat_init(self, *args, **kwargs):
+    for old, new in _FIELD_ALIASES.items():
+        if old in kwargs:
+            kwargs[new] = kwargs.pop(old)
+    _original_init(self, *args, **kwargs)
+
+
+_compat_init.__signature__ = _original_sig
+CodeMetrics.__init__ = _compat_init
 
 
 class CodeAnalyzer:
@@ -103,7 +143,7 @@ class CodeAnalyzer:
 
         # 1. Ruff (fastest)
         ruff_result = self._run_ruff(resolved)
-        metrics.ruff_violations = len(ruff_result)
+        metrics.lint_violations = len(ruff_result)
         metrics.ruff_errors = ruff_result[:10]  # Keep only first 10
 
         # 2. Radon complexity
@@ -113,22 +153,22 @@ class CodeAnalyzer:
 
         # 3. Bandit security scan
         bandit_result = self._run_bandit(resolved)
-        metrics.bandit_high = sum(
+        metrics.security_high = sum(
             1 for r in bandit_result if r.get("issue_severity") == "HIGH"
         )
-        metrics.bandit_medium = sum(
+        metrics.security_medium = sum(
             1 for r in bandit_result if r.get("issue_severity") == "MEDIUM"
         )
         metrics.bandit_issues = bandit_result[:5]  # Keep only first 5
 
         # 4. Mypy type checking
         mypy_result = self._run_mypy(resolved)
-        metrics.mypy_errors = len(mypy_result)
+        metrics.type_errors = len(mypy_result)
         metrics.mypy_warnings = mypy_result[:10]  # Keep only first 10
 
         # 5. Pylint (optional, slower)
         if run_pylint:
-            metrics.pylint_score = self._run_pylint(resolved)
+            metrics.linter_score = self._run_pylint(resolved)
 
         # Calculate overall score
         metrics.overall_score = self._calculate_score(metrics)
@@ -242,18 +282,18 @@ class CodeAnalyzer:
         score = 100.0
 
         # Ruff violations: -2 each, capped at 30
-        score -= min(metrics.ruff_violations * 2, 30)
+        score -= min(metrics.lint_violations * 2, 30)
 
         # Complexity: deduct when >10, -5 each, capped at 20
         if metrics.max_cyclomatic_complexity > 10:
             score -= min((metrics.max_cyclomatic_complexity - 10) * 5, 20)
 
         # Security: HIGH -15 each (cap 30), MEDIUM -5 each (cap 15)
-        score -= min(metrics.bandit_high * 15, 30)
-        score -= min(metrics.bandit_medium * 5, 15)
+        score -= min(metrics.security_high * 15, 30)
+        score -= min(metrics.security_medium * 5, 15)
 
         # Type errors: -1 each, capped at 10
-        score -= min(metrics.mypy_errors, 10)
+        score -= min(metrics.type_errors, 10)
 
         return max(score, 0)
 
@@ -287,8 +327,8 @@ def print_report(metrics: CodeMetrics):
     print()
 
     # Ruff
-    status = "OK" if metrics.ruff_violations == 0 else "WARN"
-    print(f"{'Ruff Violations':<20} {metrics.ruff_violations} {status}")
+    status = "OK" if metrics.lint_violations == 0 else "WARN"
+    print(f"{'Ruff Violations':<20} {metrics.lint_violations} {status}")
 
     # Complexity
     status = "OK" if metrics.max_cyclomatic_complexity <= 10 else "WARN"
@@ -298,23 +338,23 @@ def print_report(metrics: CodeMetrics):
     )
 
     # Security
-    status = "OK" if metrics.bandit_high == 0 else "ALERT"
-    print(f"{'Security HIGH':<20} {metrics.bandit_high} {status}")
-    print(f"{'Security MEDIUM':<20} {metrics.bandit_medium}")
+    status = "OK" if metrics.security_high == 0 else "ALERT"
+    print(f"{'Security HIGH':<20} {metrics.security_high} {status}")
+    print(f"{'Security MEDIUM':<20} {metrics.security_medium}")
 
     # Types
-    status = "OK" if metrics.mypy_errors == 0 else "WARN"
-    print(f"{'Type Errors':<20} {metrics.mypy_errors} {status}")
+    status = "OK" if metrics.type_errors == 0 else "WARN"
+    print(f"{'Type Errors':<20} {metrics.type_errors} {status}")
 
     # Pylint
-    if metrics.pylint_score > 0:
-        status = "OK" if metrics.pylint_score >= 8 else "WARN"
-        print(f"{'Pylint Score':<20} {metrics.pylint_score:.1f}/10 {status}")
+    if metrics.linter_score > 0:
+        status = "OK" if metrics.linter_score >= 8 else "WARN"
+        print(f"{'Pylint Score':<20} {metrics.linter_score:.1f}/10 {status}")
 
     print()
 
     # Detailed issues
-    if metrics.bandit_high > 0:
+    if metrics.security_high > 0:
         print("ALERT - Security HIGH issues:")
         for issue in metrics.bandit_issues[:3]:
             if issue.get("issue_severity") == "HIGH":

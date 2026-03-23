@@ -193,7 +193,7 @@ class TestRateCodeStyle:
     def test_ruff_b(self):
         r = _rate_code_style(ruff=2, pylint=9.5)
         assert r.rating == "B"
-        assert r.limiting_metric == "ruff_violations"
+        assert r.limiting_metric == "lint_violations"
 
     def test_ruff_b_boundary(self):
         r = _rate_code_style(ruff=3, pylint=9.5)
@@ -218,7 +218,7 @@ class TestRateCodeStyle:
     def test_pylint_b(self):
         r = _rate_code_style(ruff=0, pylint=8.0)
         assert r.rating == "B"
-        assert r.limiting_metric == "pylint_score"
+        assert r.limiting_metric == "linter_score"
 
     def test_pylint_b_boundary(self):
         r = _rate_code_style(ruff=0, pylint=7.0)
@@ -227,7 +227,7 @@ class TestRateCodeStyle:
     def test_pylint_c(self):
         r = _rate_code_style(ruff=0, pylint=6.0)
         assert r.rating == "C"
-        assert r.limiting_metric == "pylint_score"
+        assert r.limiting_metric == "linter_score"
 
     def test_pylint_c_boundary(self):
         r = _rate_code_style(ruff=0, pylint=5.0)
@@ -236,17 +236,17 @@ class TestRateCodeStyle:
     def test_pylint_d(self):
         r = _rate_code_style(ruff=0, pylint=3.0)
         assert r.rating == "D"
-        assert r.limiting_metric == "pylint_score"
+        assert r.limiting_metric == "linter_score"
 
     def test_worst_of_ruff_d_pylint_a(self):
         r = _rate_code_style(ruff=15, pylint=9.5)
         assert r.rating == "D"
-        assert r.limiting_metric == "ruff_violations"
+        assert r.limiting_metric == "lint_violations"
 
     def test_worst_of_pylint_d_ruff_a(self):
         r = _rate_code_style(ruff=0, pylint=2.0)
         assert r.rating == "D"
-        assert r.limiting_metric == "pylint_score"
+        assert r.limiting_metric == "linter_score"
 
     def test_both_null(self):
         r = _rate_code_style(ruff=None, pylint=None)
@@ -262,7 +262,7 @@ class TestRateCodeStyle:
 
     def test_detail_shows_both(self):
         r = _rate_code_style(ruff=2, pylint=6.0)
-        assert r.detail == {"ruff_violations": "B", "pylint_score": "C"}
+        assert r.detail == {"lint_violations": "B", "linter_score": "C"}
 
 
 # ===================================================================
@@ -436,63 +436,63 @@ class TestRateSecurity:
     """
 
     def test_pass_zero_all(self):
-        r = _rate_security(bandit_high=0, bandit_medium=0)
+        r = _rate_security(security_high=0, security_medium=0)
         assert r.rating == "PASS"
 
     def test_pass_medium_at_limit(self):
-        r = _rate_security(bandit_high=0, bandit_medium=2)
+        r = _rate_security(security_high=0, security_medium=2)
         assert r.rating == "PASS"
 
     def test_warn_medium_above_limit(self):
-        r = _rate_security(bandit_high=0, bandit_medium=3)
+        r = _rate_security(security_high=0, security_medium=3)
         assert r.rating == "WARN"
 
     def test_warn_medium_high(self):
-        r = _rate_security(bandit_high=0, bandit_medium=10)
+        r = _rate_security(security_high=0, security_medium=10)
         assert r.rating == "WARN"
 
     def test_fail_one_high(self):
-        r = _rate_security(bandit_high=1, bandit_medium=0)
+        r = _rate_security(security_high=1, security_medium=0)
         assert r.rating == "FAIL"
 
     def test_fail_high_with_medium(self):
-        r = _rate_security(bandit_high=2, bandit_medium=5)
+        r = _rate_security(security_high=2, security_medium=5)
         assert r.rating == "FAIL"
 
     def test_both_null(self):
-        r = _rate_security(bandit_high=None, bandit_medium=None)
+        r = _rate_security(security_high=None, security_medium=None)
         assert r.rating is None
 
     def test_high_null_medium_present(self):
         """If high is null but medium present, cannot determine security."""
-        r = _rate_security(bandit_high=None, bandit_medium=3)
+        r = _rate_security(security_high=None, security_medium=3)
         assert r.rating is None
 
     def test_medium_null_high_zero(self):
         """If medium is null but high=0, cannot determine fully."""
-        r = _rate_security(bandit_high=0, bandit_medium=None)
+        r = _rate_security(security_high=0, security_medium=None)
         assert r.rating is None
 
     def test_medium_null_high_positive(self):
         """If high>=1, FAIL regardless of medium."""
-        r = _rate_security(bandit_high=1, bandit_medium=None)
+        r = _rate_security(security_high=1, security_medium=None)
         assert r.rating == "FAIL"
 
     def test_detail_contains_values(self):
-        r = _rate_security(bandit_high=0, bandit_medium=1)
-        assert r.detail == {"bandit_high": 0, "bandit_medium": 1}
+        r = _rate_security(security_high=0, security_medium=1)
+        assert r.detail == {"security_high": 0, "security_medium": 1}
 
     def test_security_has_no_limiting_metric_on_pass(self):
-        r = _rate_security(bandit_high=0, bandit_medium=0)
+        r = _rate_security(security_high=0, security_medium=0)
         assert r.limiting_metric is None
 
     def test_security_limiting_metric_on_fail(self):
-        r = _rate_security(bandit_high=1, bandit_medium=0)
-        assert r.limiting_metric == "bandit_high"
+        r = _rate_security(security_high=1, security_medium=0)
+        assert r.limiting_metric == "security_high"
 
     def test_security_limiting_metric_on_warn(self):
-        r = _rate_security(bandit_high=0, bandit_medium=5)
-        assert r.limiting_metric == "bandit_medium"
+        r = _rate_security(security_high=0, security_medium=5)
+        assert r.limiting_metric == "security_medium"
 
 
 # ===================================================================
@@ -508,15 +508,15 @@ class TestProfileFile:
             "maintainability_index": 50.0,
             "cognitive_complexity": 3,
             "max_nesting_depth": 1,
-            "ruff_violations": 0,
-            "pylint_score": 9.5,
+            "lint_violations": 0,
+            "linter_score": 9.5,
             "docstring_density": 0.90,
             "comment_density": 0.15,
             "function_count": 10,
             "loc": 100,
-            "bandit_high": 0,
-            "bandit_medium": 0,
-            "mypy_errors": 0,
+            "security_high": 0,
+            "security_medium": 0,
+            "type_errors": 0,
             "data_warnings": [],
         }
         qp = profile_file(metrics)
@@ -526,7 +526,7 @@ class TestProfileFile:
         assert qp.code_style.rating == "A"
         assert qp.documentation.rating == "A"
         assert qp.security.rating == "PASS"
-        assert qp.mypy_errors == 0
+        assert qp.type_errors == 0
         assert qp.mypy_env_sensitive is False
         assert "M:A" in qp.summary
         assert "Sec:PASS" in qp.summary
@@ -536,15 +536,15 @@ class TestProfileFile:
             "maintainability_index": 5.0,
             "cognitive_complexity": 30,
             "max_nesting_depth": 8,
-            "ruff_violations": 20,
-            "pylint_score": 2.0,
+            "lint_violations": 20,
+            "linter_score": 2.0,
             "docstring_density": 0.05,
             "comment_density": 0.50,
             "function_count": 10,
             "loc": 100,
-            "bandit_high": 3,
-            "bandit_medium": 5,
-            "mypy_errors": 10,
+            "security_high": 3,
+            "security_medium": 5,
+            "type_errors": 10,
             "data_warnings": [],
         }
         qp = profile_file(metrics)
@@ -553,22 +553,22 @@ class TestProfileFile:
         assert qp.code_style.rating == "D"
         assert qp.documentation.rating == "D"
         assert qp.security.rating == "FAIL"
-        assert qp.mypy_errors == 10
+        assert qp.type_errors == 10
 
     def test_all_null_metrics(self):
         metrics = {
             "maintainability_index": None,
             "cognitive_complexity": None,
             "max_nesting_depth": None,
-            "ruff_violations": None,
-            "pylint_score": None,
+            "lint_violations": None,
+            "linter_score": None,
             "docstring_density": None,
             "comment_density": None,
             "function_count": None,
             "loc": None,
-            "bandit_high": None,
-            "bandit_medium": None,
-            "mypy_errors": None,
+            "security_high": None,
+            "security_medium": None,
+            "type_errors": None,
             "data_warnings": [],
         }
         qp = profile_file(metrics)
@@ -577,7 +577,7 @@ class TestProfileFile:
         assert qp.code_style.rating is None
         assert qp.documentation.rating is None
         assert qp.security.rating is None
-        assert qp.mypy_errors is None
+        assert qp.type_errors is None
         # Summary should not contain rated dimensions
         assert qp.summary == ""
 
@@ -586,15 +586,15 @@ class TestProfileFile:
             "maintainability_index": 50.0,
             "cognitive_complexity": 3,
             "max_nesting_depth": 1,
-            "ruff_violations": 0,
-            "pylint_score": 9.5,
+            "lint_violations": 0,
+            "linter_score": 9.5,
             "docstring_density": 0.90,
             "comment_density": 0.15,
             "function_count": 10,
             "loc": 100,
-            "bandit_high": 0,
-            "bandit_medium": 0,
-            "mypy_errors": 5,
+            "security_high": 0,
+            "security_medium": 0,
+            "type_errors": 5,
             "data_warnings": ["suspect:mypy_env"],
         }
         qp = profile_file(metrics)
@@ -605,15 +605,15 @@ class TestProfileFile:
             "maintainability_index": 25.0,
             "cognitive_complexity": 18,
             "max_nesting_depth": 2,
-            "ruff_violations": 0,
-            "pylint_score": 9.2,
+            "lint_violations": 0,
+            "linter_score": 9.2,
             "docstring_density": 0.10,
             "comment_density": 0.15,
             "function_count": 10,
             "loc": 100,
-            "bandit_high": 0,
-            "bandit_medium": 1,
-            "mypy_errors": 2,
+            "security_high": 0,
+            "security_medium": 1,
+            "type_errors": 2,
             "data_warnings": [],
         }
         qp = profile_file(metrics)
@@ -625,15 +625,15 @@ class TestProfileFile:
             "maintainability_index": 50.0,
             "cognitive_complexity": None,
             "max_nesting_depth": None,
-            "ruff_violations": 0,
-            "pylint_score": None,
+            "lint_violations": 0,
+            "linter_score": None,
             "docstring_density": None,
             "comment_density": None,
             "function_count": None,
             "loc": None,
-            "bandit_high": 0,
-            "bandit_medium": 0,
-            "mypy_errors": None,
+            "security_high": 0,
+            "security_medium": 0,
+            "type_errors": None,
             "data_warnings": [],
         }
         qp = profile_file(metrics)
@@ -653,15 +653,15 @@ class TestOutputFields:
             "maintainability_index": 52.3,
             "cognitive_complexity": 18,
             "max_nesting_depth": 2,
-            "ruff_violations": 0,
-            "pylint_score": 9.2,
+            "lint_violations": 0,
+            "linter_score": 9.2,
             "docstring_density": 0.10,
             "comment_density": 0.15,
             "function_count": 10,
             "loc": 100,
-            "bandit_high": 0,
-            "bandit_medium": 1,
-            "mypy_errors": 2,
+            "security_high": 0,
+            "security_medium": 1,
+            "type_errors": 2,
             "data_warnings": [],
         }
         qp = profile_file(metrics)
@@ -681,16 +681,16 @@ class TestOutputFields:
         assert flat["qp_code_style"] == "A"
         assert flat["qp_code_style_limiting"] is None
         assert flat["qp_code_style_detail"] == {
-            "ruff_violations": "A",
-            "pylint_score": "A",
+            "lint_violations": "A",
+            "linter_score": "A",
         }
 
         assert flat["qp_documentation"] == "D"
         assert flat["qp_documentation_limiting"] == "docstring_density"
 
         assert flat["qp_security"] == "PASS"
-        assert flat["qp_security_detail"] == {"bandit_high": 0, "bandit_medium": 1}
+        assert flat["qp_security_detail"] == {"security_high": 0, "security_medium": 1}
 
-        assert flat["qp_mypy_errors"] == 2
+        assert flat["qp_type_errors"] == 2
         assert flat["qp_mypy_env_sensitive"] is False
         assert flat["qp_summary"] == "M:A Cx:C St:A Doc:D Sec:PASS"

@@ -202,8 +202,8 @@ def _render_file_profile(filename: str, profile: QualityProfile) -> None:
         detail_str = f"  ({', '.join(detail_parts)})" if detail_parts else ""
         console.print(f"  {label:<18} [{color}]{dim.rating}[/{color}]{detail_str}")
 
-    if profile.mypy_errors is not None and profile.mypy_errors > 0:
-        console.print(f"  {'Type Safety':<18} {profile.mypy_errors} errors (info)")
+    if profile.type_errors is not None and profile.type_errors > 0:
+        console.print(f"  {'Type Safety':<18} {profile.type_errors} errors (info)")
 
     # Action items for C/D dimensions
     actions = []

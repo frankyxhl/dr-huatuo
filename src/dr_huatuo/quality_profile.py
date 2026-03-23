@@ -14,6 +14,8 @@ Dimensions:
 Type Safety (mypy_errors) is informational only, not rated.
 """
 
+import functools
+import inspect
 from dataclasses import dataclass
 
 # Rating order for worst-of comparisons (D is worst, A is best)
@@ -39,7 +41,7 @@ class QualityProfile:
     code_style: DimensionResult
     documentation: DimensionResult
     security: DimensionResult
-    mypy_errors: int | None
+    type_errors: int | None
     mypy_env_sensitive: bool
     summary: str
 
@@ -62,11 +64,40 @@ class QualityProfile:
             result[f"{prefix}_limiting"] = dim.limiting_metric
             result[f"{prefix}_detail"] = dict(dim.detail)
 
-        result["qp_mypy_errors"] = self.mypy_errors
+        result["qp_type_errors"] = self.type_errors
+        result["qp_mypy_errors"] = self.type_errors  # legacy alias
         result["qp_mypy_env_sensitive"] = self.mypy_env_sensitive
         result["qp_summary"] = self.summary
 
         return result
+
+    def __getattr__(self, name):
+        if name == "mypy_errors":
+            import warnings
+
+            warnings.warn(
+                "QualityProfile.mypy_errors is deprecated, use type_errors",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return self.type_errors
+        raise AttributeError(f"'QualityProfile' has no attribute '{name}'")
+
+
+# Wrap QualityProfile.__init__ for backward-compat kwargs
+_qp_original_init = QualityProfile.__init__
+_qp_original_sig = inspect.signature(_qp_original_init)
+
+
+@functools.wraps(_qp_original_init)
+def _qp_compat_init(self, *args, **kwargs):
+    if "mypy_errors" in kwargs:
+        kwargs["type_errors"] = kwargs.pop("mypy_errors")
+    _qp_original_init(self, *args, **kwargs)
+
+
+_qp_compat_init.__signature__ = _qp_original_sig
+QualityProfile.__init__ = _qp_compat_init
 
 
 def _rate_single_mi(mi: float) -> str:
@@ -227,13 +258,13 @@ def _rate_code_style(ruff: int | None, pylint: float | None) -> DimensionResult:
 
     if ruff is not None:
         r = _rate_single_ruff(ruff)
-        ratings.append(("ruff_violations", r))
-        detail["ruff_violations"] = r
+        ratings.append(("lint_violations", r))
+        detail["lint_violations"] = r
 
     if pylint is not None:
         r = _rate_single_pylint(pylint)
-        ratings.append(("pylint_score", r))
-        detail["pylint_score"] = r
+        ratings.append(("linter_score", r))
+        detail["linter_score"] = r
 
     if not ratings:
         return DimensionResult(
@@ -290,7 +321,7 @@ def _rate_documentation(
 
 
 def _rate_security(
-    bandit_high: int | None, bandit_medium: int | None
+    security_high: int | None, security_medium: int | None
 ) -> DimensionResult:
     """Rate the Security dimension (PASS/WARN/FAIL gate).
 
@@ -300,28 +331,28 @@ def _rate_security(
     """
     detail: dict[str, int] = {}
 
-    if bandit_high is not None:
-        detail["bandit_high"] = bandit_high
-    if bandit_medium is not None:
-        detail["bandit_medium"] = bandit_medium
+    if security_high is not None:
+        detail["security_high"] = security_high
+    if security_medium is not None:
+        detail["security_medium"] = security_medium
 
     # If high >= 1, always FAIL (even if medium is null)
-    if bandit_high is not None and bandit_high >= 1:
+    if security_high is not None and security_high >= 1:
         return DimensionResult(
             name="security",
             rating="FAIL",
-            limiting_metric="bandit_high",
+            limiting_metric="security_high",
             detail=detail,
         )
 
     # Need both metrics to determine PASS/WARN
-    if bandit_high is None or bandit_medium is None:
+    if security_high is None or security_medium is None:
         return DimensionResult(
             name="security", rating=None, limiting_metric=None, detail=detail
         )
 
     # high == 0
-    if bandit_medium <= 2:
+    if security_medium <= 2:
         return DimensionResult(
             name="security",
             rating="PASS",
@@ -332,7 +363,7 @@ def _rate_security(
         return DimensionResult(
             name="security",
             rating="WARN",
-            limiting_metric="bandit_medium",
+            limiting_metric="security_medium",
             detail=detail,
         )
 
@@ -375,8 +406,8 @@ def profile_file(metrics: dict) -> QualityProfile:
         nesting=metrics.get("max_nesting_depth"),
     )
     code_style = _rate_code_style(
-        ruff=metrics.get("ruff_violations"),
-        pylint=metrics.get("pylint_score"),
+        ruff=metrics.get("lint_violations", metrics.get("ruff_violations")),
+        pylint=metrics.get("linter_score", metrics.get("pylint_score")),
     )
     documentation = _rate_documentation(
         docstring_d=metrics.get("docstring_density"),
@@ -385,11 +416,11 @@ def profile_file(metrics: dict) -> QualityProfile:
         loc=metrics.get("loc"),
     )
     security = _rate_security(
-        bandit_high=metrics.get("bandit_high"),
-        bandit_medium=metrics.get("bandit_medium"),
+        security_high=metrics.get("security_high", metrics.get("bandit_high")),
+        security_medium=metrics.get("security_medium", metrics.get("bandit_medium")),
     )
 
-    mypy_errors = metrics.get("mypy_errors")
+    mypy_errors = metrics.get("type_errors", metrics.get("mypy_errors"))
     data_warnings = metrics.get("data_warnings", [])
     mypy_env_sensitive = "suspect:mypy_env" in data_warnings
 
@@ -399,7 +430,7 @@ def profile_file(metrics: dict) -> QualityProfile:
         code_style=code_style,
         documentation=documentation,
         security=security,
-        mypy_errors=mypy_errors,
+        type_errors=mypy_errors,
         mypy_env_sensitive=mypy_env_sensitive,
         summary="",  # placeholder
     )
