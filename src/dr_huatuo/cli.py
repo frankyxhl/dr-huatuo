@@ -10,6 +10,7 @@ import argparse
 import importlib.metadata
 import subprocess
 import sys
+from collections import defaultdict
 from pathlib import Path
 from typing import Iterator, Optional
 
@@ -330,8 +331,6 @@ def cmd_check(args: argparse.Namespace) -> int:
         return 0
 
     # Group files by analyzer class (not extension) to batch correctly
-    from collections import defaultdict
-
     by_analyzer: dict[str, list[Path]] = defaultdict(list)
     for f in files:
         cls = ANALYZERS.get(f.suffix)
@@ -339,6 +338,7 @@ def cmd_check(args: argparse.Namespace) -> int:
             by_analyzer[cls.name].append(f)
 
     profiles: list[tuple[str, QualityProfile]] = []
+    skipped_languages: list[str] = []
 
     # Create one analyzer per language, batch analyze
     for _lang_name, lang_files in by_analyzer.items():
@@ -349,6 +349,7 @@ def cmd_check(args: argparse.Namespace) -> int:
             analyzer = create_analyzer(lang_files[0], project_root=project_root)
         except ToolNotFoundError as e:
             console.print(f"[yellow]Skipping {_lang_name} files:[/yellow] {e}")
+            skipped_languages.append(_lang_name)
             continue
 
         if analyzer is None:
@@ -364,6 +365,10 @@ def cmd_check(args: argparse.Namespace) -> int:
             console.print(f"\n[red]Error analyzing {_lang_name} files:[/red] {e}")
 
     if not profiles:
+        if skipped_languages:
+            # Files found but all analyzers failed — report as error
+            console.print("[red]No files could be analyzed (missing tools).[/red]")
+            return 1
         console.print("[yellow]No files could be analyzed.[/yellow]")
         return 0
 
@@ -390,7 +395,7 @@ def cmd_report(args: argparse.Namespace) -> int:
     from dr_huatuo.code_reporter import generate_report
 
     try:
-        default_exclude = [".venv", "__pycache__", ".git"]
+        default_exclude = [".venv", "__pycache__", ".git", "node_modules"]
         exclude = getattr(args, "exclude", default_exclude)
         output_format = getattr(args, "format", "terminal")
         output_file = getattr(args, "output", None)
@@ -518,9 +523,11 @@ output:
         default=[".venv", "__pycache__", ".git", "node_modules"],
         help="Directories to exclude (default: .venv __pycache__ .git node_modules)",
     )
+    _lang_choices = sorted({cls.name for cls in ANALYZERS.values()})
     check_parser.add_argument(
         "--language",
         default=None,
+        choices=_lang_choices,
         help="Filter by language (e.g., python, typescript)",
     )
 
@@ -559,8 +566,8 @@ formats:
         "-e",
         "--exclude",
         nargs="+",
-        default=[".venv", "__pycache__", ".git"],
-        help="Directories to exclude (default: .venv __pycache__ .git)",
+        default=[".venv", "__pycache__", ".git", "node_modules"],
+        help="Directories to exclude (default: .venv __pycache__ .git node_modules)",
     )
 
     # version subcommand

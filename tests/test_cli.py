@@ -271,9 +271,9 @@ class TestQualityGate:
 
 
 class TestToolNotFoundError:
-    """Test that cmd_check skips languages with missing tools gracefully."""
+    """Test that cmd_check returns 1 when all analyzers fail with missing tools."""
 
-    def test_cmd_check_skips_language_on_missing_tools(self, tmp_path, monkeypatch):
+    def test_cmd_check_returns_1_when_all_tools_missing(self, tmp_path, monkeypatch):
         from dr_huatuo.analyzers.base import ToolNotFoundError
         from dr_huatuo.cli import cmd_check
 
@@ -293,8 +293,8 @@ class TestToolNotFoundError:
             exclude=[".venv", "__pycache__", ".git", "node_modules"],
             language=None,
         )
-        # Returns 0 (no profiles) rather than crashing
-        assert cmd_check(args) == 0
+        # Returns 1 when files found but all analyzers failed
+        assert cmd_check(args) == 1
 
 
 # ===================================================================

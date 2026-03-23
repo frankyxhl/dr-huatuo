@@ -24,6 +24,7 @@ class TypeScriptAnalyzer(BaseAnalyzer):
     extensions: ClassVar[list[str]] = [".ts", ".tsx"]
     critical_tools: ClassVar[list[str]] = ["node", "eslint"]
     optional_tools: ClassVar[list[str]] = ["tsc", "escomplex"]
+    _path_ensured: ClassVar[bool] = False
 
     def __init__(self, project_root: Path | None = None) -> None:
         self.project_root = self._find_config_root(project_root)
@@ -54,9 +55,11 @@ class TypeScriptAnalyzer(BaseAnalyzer):
                 return d  # stop at repo root
         return p  # fallback to original
 
-    @staticmethod
-    def _ensure_node_on_path() -> None:
-        """Add common Node.js bin dirs to PATH."""
+    @classmethod
+    def _ensure_node_on_path(cls) -> None:
+        """Add common Node.js bin dirs to PATH (runs once per process)."""
+        if cls._path_ensured:
+            return
         extra_dirs = []
         # npm global bin
         try:
@@ -75,6 +78,7 @@ class TypeScriptAnalyzer(BaseAnalyzer):
             if d not in path.split(os.pathsep):
                 path = d + os.pathsep + path
         os.environ["PATH"] = path
+        cls._path_ensured = True
 
     def check_tools(self) -> dict[str, str | None]:
         """Check tool availability. Raise for missing critical tools."""
@@ -119,7 +123,12 @@ class TypeScriptAnalyzer(BaseAnalyzer):
 
     @staticmethod
     def _check_npm_package(package: str) -> bool:
-        """Check if an npm package is available."""
+        """Check if an npm package is available.
+
+        Only accepts valid npm package names to prevent code injection.
+        """
+        if not re.match(r"^[a-z0-9@][a-z0-9_./@-]*$", package):
+            return False
         try:
             result = subprocess.run(
                 ["node", "-e", f"require('{package}')"],
@@ -454,12 +463,10 @@ class TypeScriptAnalyzer(BaseAnalyzer):
         """Run tsc --noEmit, return {filepath: error_count or None}."""
         try:
             cmd = ["tsc", "--noEmit", "--pretty", "false"]
-            using_project = False
             if self.project_root:
                 tsconfig = Path(self.project_root) / "tsconfig.json"
                 if tsconfig.exists():
                     cmd.extend(["--project", str(tsconfig)])
-                    using_project = True
                 else:
                     cmd.append("--strict")
                     cmd.extend(str(p) for p in paths)
@@ -476,69 +483,12 @@ class TypeScriptAnalyzer(BaseAnalyzer):
             )
 
             if result.returncode == 0:
-                if using_project:
-                    # Project mode: only files in tsconfig scope are checked.
-                    # We can't know which files are in scope from rc=0 alone.
-                    # Default to None (unchecked); set 0 only for explicitly
-                    # listed files. Since rc=0 means no errors, all in-scope
-                    # files have 0 errors — but we don't know which are in scope.
-                    # Pragmatic: pass file list to tsc explicitly to verify.
-                    return self._tsc_verify_files(paths)
-                else:
-                    # Explicit file list mode: all passed files were checked
-                    return {str(p): 0 for p in paths}
-
-            # None = not checked (file not in tsconfig scope)
-            per_file: dict[str, int | None] = {str(p): None for p in paths}
-            for line in result.stdout.splitlines():
-                # Format: file.ts(line,col): error TS1234: message
-                match = re.match(r"(.+?)\(\d+,\d+\):\s+error\s+", line)
-                if match:
-                    fpath = match.group(1)
-                    # Normalize path
-                    for p in paths:
-                        if str(p).endswith(fpath) or fpath.endswith(str(p.name)):
-                            current = per_file.get(str(p))
-                            per_file[str(p)] = (current or 0) + 1
-                            break
-            return per_file
-        except subprocess.TimeoutExpired:
-            return None
-        except Exception:
-            return None
-
-    def _tsc_verify_files(self, paths: list[Path]) -> dict[str, int | None]:
-        """In project mode with rc=0, verify which files tsc actually covers.
-
-        Runs tsc --noEmit --strict on each file individually. If rc=0,
-        the file is clean (0 errors). If it fails, it wasn't in scope (None).
-        This is slower but correct for project mode.
-        """
-        # Pragmatic approach: since tsc --project succeeded with rc=0,
-        # all in-scope files have 0 errors. For files explicitly passed
-        # on the command line with --strict, tsc checks them directly.
-        # Just re-run with explicit file list + --strict.
-        try:
-            cmd = [
-                "tsc",
-                "--noEmit",
-                "--pretty",
-                "false",
-                "--strict",
-            ]
-            cmd.extend(str(p) for p in paths)
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=60,
-                cwd=str(self.project_root) if self.project_root else None,
-            )
-            if result.returncode == 0:
                 return {str(p): 0 for p in paths}
-            # Parse errors for specific files
+
+            # Default to 0 (clean) — only files with errors get incremented
             per_file: dict[str, int | None] = {str(p): 0 for p in paths}
             for line in result.stdout.splitlines():
+                # Format: file.ts(line,col): error TS1234: message
                 match = re.match(r"(.+?)\(\d+,\d+\):\s+error\s+", line)
                 if match:
                     fpath = match.group(1)
@@ -547,8 +497,10 @@ class TypeScriptAnalyzer(BaseAnalyzer):
                             per_file[str(p)] = (per_file.get(str(p)) or 0) + 1
                             break
             return per_file
+        except subprocess.TimeoutExpired:
+            return None
         except Exception:
-            return {str(p): None for p in paths}
+            return None
 
     def _run_escomplex(self, path: Path) -> dict | None:
         """Run escomplex on a single file, return complexity metrics."""
