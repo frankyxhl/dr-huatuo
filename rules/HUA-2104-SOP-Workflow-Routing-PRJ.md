@@ -114,6 +114,9 @@ After routing through COR-1103, check these HUA-specific branches:
         └── Update PLN status after completing a milestone
 ```
 
+**Git workflow:** All code changes follow HUA-2135-SOP (Git Workflow):
+feature branch → PR → CI pass → merge. No direct commits to main.
+
 ---
 
 ## Project Golden Rules
@@ -132,6 +135,7 @@ make check (lint + test) + code review (Codex+Gemini ≥9) MUST pass before ANY 
 Version: single source in src/dr_huatuo/__init__.py; semver MAJOR.MINOR.PATCH
 Package: src/dr_huatuo/ layout; entry point dr-huatuo = dr_huatuo.cli:main
 Dependencies: all managed in pyproject.toml (deps, optional-deps, build config)
+Git: all code changes via feature branch → PR → merge (HUA-2135-SOP); no direct main commits
 ```
 
 ---
