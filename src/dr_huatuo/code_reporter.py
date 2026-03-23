@@ -4,7 +4,11 @@ Supports multiple output formats: terminal / HTML / Markdown / JSON.
 """
 
 import json
+import os
+import re
+import shutil
 import subprocess
+import sys
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -76,14 +80,33 @@ class CodeAnalyzer:
     """Code analysis engine."""
 
     def __init__(self):
+        self._ensure_venv_on_path()
         self._check_tools()
 
+    @staticmethod
+    def _ensure_venv_on_path():
+        """Add the running Python's bin dir to PATH so subprocess calls
+        find venv-installed tools even when the venv is not activated."""
+        bin_dir = str(Path(sys.executable).parent)
+        path = os.environ.get("PATH", "")
+        if bin_dir not in path.split(os.pathsep):
+            os.environ["PATH"] = bin_dir + os.pathsep + path
+
     def _check_tools(self):
-        required = ["ruff", "radon", "bandit", "mypy"]
+        required = ["ruff", "radon", "bandit", "mypy", "pylint"]
         self.available_tools = {}
+        missing = []
         for tool in required:
-            result = subprocess.run(["which", tool], capture_output=True)
-            self.available_tools[tool] = result.returncode == 0
+            found = shutil.which(tool) is not None
+            self.available_tools[tool] = found
+            if not found:
+                missing.append(tool)
+        if missing:
+            print(
+                f"Warning: the following tools are not installed: {', '.join(missing)}"
+            )
+            print("Run: pip install ruff radon bandit mypy pylint")
+            print("Results will be incomplete — missing tools are skipped.")
 
     def analyze_file(self, file_path: Path) -> FileMetrics:
         """Analyze a single file."""
@@ -130,6 +153,10 @@ class CodeAnalyzer:
             mypy_result = self._run_mypy(file_path)
             metrics.mypy_errors = len(mypy_result)
             metrics.mypy_issues = mypy_result[:5]
+
+        # Pylint
+        if self.available_tools.get("pylint"):
+            metrics.pylint_score = self._run_pylint(file_path)
 
         # Calculate score
         metrics.score = self._calculate_score(metrics)
@@ -512,11 +539,28 @@ class CodeAnalyzer:
         except Exception:
             return []
 
+    def _run_pylint(self, path: Path) -> float:
+        """Run pylint and extract score."""
+        try:
+            result = subprocess.run(
+                ["pylint", str(path), "--output-format=parseable"],
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+            output = result.stdout + result.stderr
+            match = re.search(r"rated at ([\d.]+)/10", output)
+            if match:
+                return float(match.group(1))
+        except Exception:
+            pass
+        return 0.0
+
     def _calculate_score(self, m: FileMetrics) -> float:
         score = 100.0
         score -= min(m.ruff_violations * 2, 30)
         if m.max_complexity > 10:
-            score -= min((m.max_complexity - 10) * 3, 25)
+            score -= min((m.max_complexity - 10) * 5, 20)
         score -= min(m.bandit_high * 15, 30)
         score -= min(m.bandit_medium * 5, 15)
         score -= min(m.mypy_errors, 10)
@@ -524,14 +568,14 @@ class CodeAnalyzer:
 
     def _get_grade(self, score: float) -> str:
         if score >= 90:
-            return "A"
+            return "A (Excellent)"
         if score >= 80:
-            return "B"
+            return "B (Good)"
         if score >= 70:
-            return "C"
+            return "C (Fair)"
         if score >= 60:
-            return "D"
-        return "F"
+            return "D (Pass)"
+        return "F (Fail)"
 
 
 class ReportRenderer:

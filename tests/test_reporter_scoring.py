@@ -1,14 +1,14 @@
 """Tests for code_reporter.py _calculate_score and _get_grade.
 
-Scoring rules (code_reporter.py) -- DIFFERENT from code_analyzer.py:
+Scoring rules (unified with code_analyzer.py per HUA-2130-ADR):
   - Ruff violations: -2 each, capped at 30
-  - Complexity >10: (cc - 10) * 3, capped at 25  (analyzer uses *5, cap 20)
+  - Complexity >10: (cc - 10) * 5, capped at 20
   - Bandit HIGH: -15 each, capped at 30
   - Bandit MEDIUM: -5 each, capped at 15
   - Mypy errors: -1 each, capped at 10
   - Floor at 0
 
-Grade returns single-letter strings: "A", "B", "C", "D", "F" (no Chinese labels).
+Grade returns descriptive labels: "A (Excellent)", "B (Good)", etc.
 """
 
 import pytest
@@ -60,39 +60,31 @@ class TestCalculateScore:
         # 20 * 2 = 40, capped at 30
         assert analyzer._calculate_score(m) == 70.0
 
-    # --- Complexity >10: (cc - 10) * 3, capped at 25 ---
+    # --- Complexity >10: (cc - 10) * 5, capped at 20 ---
 
     def test_complexity_at_10_no_deduction(self, analyzer):
         m = FileMetrics(file_path="t.py", max_complexity=10)
         assert analyzer._calculate_score(m) == 100.0
 
-    def test_complexity_11_deducts_3(self, analyzer):
+    def test_complexity_11_deducts_5(self, analyzer):
         m = FileMetrics(file_path="t.py", max_complexity=11)
-        # (11 - 10) * 3 = 3
-        assert analyzer._calculate_score(m) == 97.0
+        # (11 - 10) * 5 = 5
+        assert analyzer._calculate_score(m) == 95.0
 
     def test_complexity_below_cap(self, analyzer):
-        m = FileMetrics(file_path="t.py", max_complexity=15)
-        # (15 - 10) * 3 = 15, under cap of 25
+        m = FileMetrics(file_path="t.py", max_complexity=13)
+        # (13 - 10) * 5 = 15, under cap of 20
         assert analyzer._calculate_score(m) == 85.0
 
-    def test_complexity_near_cap(self, analyzer):
-        m = FileMetrics(file_path="t.py", max_complexity=18)
-        # (18 - 10) * 3 = 24, under cap of 25
-        assert analyzer._calculate_score(m) == 76.0
+    def test_complexity_at_cap(self, analyzer):
+        m = FileMetrics(file_path="t.py", max_complexity=14)
+        # (14 - 10) * 5 = 20, exactly at cap
+        assert analyzer._calculate_score(m) == 80.0
 
     def test_complexity_over_cap(self, analyzer):
         m = FileMetrics(file_path="t.py", max_complexity=25)
-        # (25 - 10) * 3 = 45, capped at 25
-        assert analyzer._calculate_score(m) == 75.0
-
-    def test_complexity_exact_cap_boundary(self, analyzer):
-        """Find the exact cc where the cap kicks in: (cc-10)*3 = 25 is not
-        an integer boundary, so the first cc that would exceed 25 is cc=19
-        where (19-10)*3=27 > 25, capped to 25."""
-        m = FileMetrics(file_path="t.py", max_complexity=19)
-        # (19 - 10) * 3 = 27, capped at 25
-        assert analyzer._calculate_score(m) == 75.0
+        # (25 - 10) * 5 = 75, capped at 20
+        assert analyzer._calculate_score(m) == 80.0
 
     # --- Bandit HIGH: -15 each, capped at 30 ---
 
@@ -150,13 +142,13 @@ class TestCalculateScore:
         m = FileMetrics(
             file_path="t.py",
             ruff_violations=20,  # cap 30
-            max_complexity=30,  # cap 25
+            max_complexity=30,  # cap 20
             bandit_high=3,  # cap 30
             bandit_medium=5,  # cap 15
             mypy_errors=15,  # cap 10
         )
-        # Total deductions: 30 + 25 + 30 + 15 + 10 = 110
-        # 100 - 110 = -10, floored to 0
+        # Total deductions: 30 + 20 + 30 + 15 + 10 = 105
+        # 100 - 105 = -5, floored to 0
         assert analyzer._calculate_score(m) == 0.0
 
 
@@ -168,36 +160,36 @@ class TestCalculateScore:
 class TestGetGrade:
     """Tests for code_reporter CodeAnalyzer._get_grade.
 
-    Returns single-letter grade strings (no Chinese labels).
+    Returns descriptive grade labels (unified per HUA-2130-ADR).
     Boundaries: 90, 80, 70, 60. Tested on both sides.
     """
 
     def test_grade_100(self, analyzer):
-        assert analyzer._get_grade(100.0) == "A"
+        assert analyzer._get_grade(100.0) == "A (Excellent)"
 
     def test_grade_at_90(self, analyzer):
-        assert analyzer._get_grade(90.0) == "A"
+        assert analyzer._get_grade(90.0) == "A (Excellent)"
 
     def test_grade_at_89_9(self, analyzer):
-        assert analyzer._get_grade(89.9) == "B"
+        assert analyzer._get_grade(89.9) == "B (Good)"
 
     def test_grade_at_80(self, analyzer):
-        assert analyzer._get_grade(80.0) == "B"
+        assert analyzer._get_grade(80.0) == "B (Good)"
 
     def test_grade_at_79_9(self, analyzer):
-        assert analyzer._get_grade(79.9) == "C"
+        assert analyzer._get_grade(79.9) == "C (Fair)"
 
     def test_grade_at_70(self, analyzer):
-        assert analyzer._get_grade(70.0) == "C"
+        assert analyzer._get_grade(70.0) == "C (Fair)"
 
     def test_grade_at_69_9(self, analyzer):
-        assert analyzer._get_grade(69.9) == "D"
+        assert analyzer._get_grade(69.9) == "D (Pass)"
 
     def test_grade_at_60(self, analyzer):
-        assert analyzer._get_grade(60.0) == "D"
+        assert analyzer._get_grade(60.0) == "D (Pass)"
 
     def test_grade_at_59_9(self, analyzer):
-        assert analyzer._get_grade(59.9) == "F"
+        assert analyzer._get_grade(59.9) == "F (Fail)"
 
     def test_grade_at_0(self, analyzer):
-        assert analyzer._get_grade(0.0) == "F"
+        assert analyzer._get_grade(0.0) == "F (Fail)"

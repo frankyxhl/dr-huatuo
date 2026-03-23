@@ -4,8 +4,11 @@ Supports multi-dimensional quality analysis of single files or directories.
 """
 
 import json
+import os
 import re
+import shutil
 import subprocess
+import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Optional
@@ -54,7 +57,17 @@ class CodeAnalyzer:
             venv_python: Path to venv Python, e.g. ".venv/bin/python"
         """
         self.venv_python = venv_python
+        self._ensure_venv_on_path()
         self._check_tools()
+
+    @staticmethod
+    def _ensure_venv_on_path():
+        """Add the running Python's bin dir to PATH so subprocess calls
+        find venv-installed tools even when the venv is not activated."""
+        bin_dir = str(Path(sys.executable).parent)
+        path = os.environ.get("PATH", "")
+        if bin_dir not in path.split(os.pathsep):
+            os.environ["PATH"] = bin_dir + os.pathsep + path
 
     def _check_tools(self):
         """Check that required tools are installed."""
@@ -62,11 +75,7 @@ class CodeAnalyzer:
         missing = []
 
         for tool in required:
-            result = subprocess.run(
-                ["which", tool],
-                capture_output=True,
-            )
-            if result.returncode != 0:
+            if shutil.which(tool) is None:
                 missing.append(tool)
 
         if missing:
