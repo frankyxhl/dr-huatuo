@@ -580,7 +580,36 @@ def build_parser() -> argparse.ArgumentParser:
     """Build the CLI argument parser."""
     parser = argparse.ArgumentParser(
         prog="huatuo",
-        description="Huatuo code quality analysis toolkit",
+        description="Huatuo (ht) — code quality diagnosis toolkit for Python.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""\
+commands:
+  check    5-dimension quality profile (Maintainability, Complexity,
+           Code Style, Documentation, Security)
+  report   Full project report with per-file breakdown
+  version  Show huatuo and tool versions
+
+examples:
+  ht check src/app.py           Analyze a single file
+  ht check src/                 Analyze all .py files in a directory
+  ht check . -e .venv tests     Analyze project, exclude dirs
+  ht check src/ --fail-on D     CI gate: fail if any file grades D or F
+  ht report src/ -f html -o report.html
+                                Generate interactive HTML report
+  ht version                    Show installed tool versions
+
+quality dimensions:
+  Maintainability   MI (Maintainability Index), 0-100
+  Complexity        Cognitive complexity + max nesting depth
+  Code Style        Lint violations (ruff) + linter score (pylint)
+  Documentation     Docstring coverage + comment density
+  Security          Bandit findings (HIGH = FAIL, MEDIUM = WARN)
+
+grades: A (90+) B (80+) C (70+) D (60+) F (<60)
+
+install: pip install dr-huatuo
+docs:    https://github.com/frankyxhl/dr-huatuo
+""",
     )
     subparsers = parser.add_subparsers(dest="command")
 
@@ -588,6 +617,24 @@ def build_parser() -> argparse.ArgumentParser:
     check_parser = subparsers.add_parser(
         "check",
         help="Analyze file(s) and show quality profile",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""\
+examples:
+  ht check src/app.py                  Single file analysis
+  ht check src/                        All .py files in directory
+  ht check . -e .venv tests docs       Exclude multiple directories
+  ht check src/ --fail-on D            CI: exit 1 if any file is D or F
+  ht check src/ --fail-on C            CI: exit 1 if any file is C, D, or F
+  ht check src/ --fail-on WARN         CI: exit 1 if any security warning
+  ht check src/ --fail-on FAIL         CI: exit 1 only on security FAIL
+  ht check src/ --fail-on D --dimension Security
+                                       CI: gate on Security dimension only
+
+output:
+  Per-file quality profile with 5 dimensions (A-F grades), followed by
+  a project summary when analyzing directories. Security dimension uses
+  PASS/WARN/FAIL instead of letter grades.
+""",
     )
     check_parser.add_argument("path", help="File or directory to analyze")
     check_parser.add_argument(
@@ -607,13 +654,30 @@ def build_parser() -> argparse.ArgumentParser:
         "--exclude",
         nargs="+",
         default=[".venv", "__pycache__", ".git"],
-        help="Directories to exclude",
+        help="Directories to exclude (default: .venv __pycache__ .git)",
     )
 
     # report subcommand
     report_parser = subparsers.add_parser(
         "report",
         help="Generate project report",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""\
+examples:
+  ht report src/                           Terminal report (default)
+  ht report src/ -f html -o report.html    Interactive HTML with charts
+  ht report src/ -f json -o report.json    Machine-readable JSON
+  ht report src/ -f markdown -o report.md  Markdown for documentation
+  ht report . -e .venv tests -f html -o out.html
+                                           Full project, exclude dirs
+
+formats:
+  terminal   Rich-formatted table in terminal (default)
+  html       Interactive report with Chart.js, complexity drilldown,
+             and source code view
+  json       Structured data for CI/CD pipelines and downstream tools
+  markdown   Text report suitable for commit messages or docs
+""",
     )
     report_parser.add_argument("path", help="Project path")
     report_parser.add_argument(
@@ -621,7 +685,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--format",
         choices=["terminal", "json", "markdown", "html"],
         default="terminal",
-        help="Output format",
+        help="Output format (default: terminal)",
     )
     report_parser.add_argument("-o", "--output", help="Output file path")
     report_parser.add_argument(
@@ -629,11 +693,20 @@ def build_parser() -> argparse.ArgumentParser:
         "--exclude",
         nargs="+",
         default=[".venv", "__pycache__", ".git"],
-        help="Directories to exclude",
+        help="Directories to exclude (default: .venv __pycache__ .git)",
     )
 
     # version subcommand
-    subparsers.add_parser("version", help="Show version info")
+    subparsers.add_parser(
+        "version",
+        help="Show version info",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""\
+example:
+  ht version    Shows huatuo version and status of all analysis tools
+                (ruff, radon, bandit, mypy, pylint, complexipy)
+""",
+    )
 
     return parser
 
