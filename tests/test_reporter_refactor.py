@@ -51,10 +51,10 @@ def _make_file(
     max_complexity=3,
     avg_complexity=2.0,
     func_count=2,
-    ruff_violations=0,
-    mypy_errors=0,
-    bandit_high=0,
-    bandit_medium=0,
+    lint_violations=0,
+    type_errors=0,
+    security_high=0,
+    security_medium=0,
     line_count=50,
     complexity_hotspots=None,
     ruff_issues=None,
@@ -68,10 +68,10 @@ def _make_file(
         max_complexity=max_complexity,
         avg_complexity=avg_complexity,
         func_count=func_count,
-        ruff_violations=ruff_violations,
-        mypy_errors=mypy_errors,
-        bandit_high=bandit_high,
-        bandit_medium=bandit_medium,
+        lint_violations=lint_violations,
+        type_errors=type_errors,
+        security_high=security_high,
+        security_medium=security_medium,
         line_count=line_count,
         complexity_hotspots=complexity_hotspots or [],
         ruff_issues=ruff_issues or [],
@@ -271,21 +271,21 @@ class TestAggregateReport:
         assert report.complexity_hotspots == []
 
     def test_total_violations(self):
-        files = [_make_file(ruff_violations=3), _make_file(ruff_violations=7)]
+        files = [_make_file(lint_violations=3), _make_file(lint_violations=7)]
         report = _make_report(files=files)
         CodeAnalyzer._aggregate_report(report)
         assert report.total_violations == 10
 
     def test_total_type_errors(self):
-        files = [_make_file(mypy_errors=2), _make_file(mypy_errors=4)]
+        files = [_make_file(type_errors=2), _make_file(type_errors=4)]
         report = _make_report(files=files)
         CodeAnalyzer._aggregate_report(report)
         assert report.total_type_errors == 6
 
     def test_total_security_issues(self):
         files = [
-            _make_file(bandit_high=1, bandit_medium=2),
-            _make_file(bandit_high=0, bandit_medium=1),
+            _make_file(security_high=1, security_medium=2),
+            _make_file(security_high=0, security_medium=1),
         ]
         report = _make_report(files=files)
         CodeAnalyzer._aggregate_report(report)
@@ -472,10 +472,10 @@ class TestPrepareFilesJson:
             assert "path" in entry
             assert "score" in entry
             assert "max_complexity" in entry
-            assert "ruff_violations" in entry
-            assert "mypy_errors" in entry
-            assert "bandit_high" in entry
-            assert "bandit_medium" in entry
+            assert "lint_violations" in entry
+            assert "type_errors" in entry
+            assert "security_high" in entry
+            assert "security_medium" in entry
             assert "line_count" in entry
 
     def test_detail_keys(self, renderer, sample_report):

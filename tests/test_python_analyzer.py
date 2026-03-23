@@ -173,8 +173,13 @@ class TestAnalyzeFile:
 
         # Halstead keys
         for key in [
-            "n1", "n2", "N1", "N2",
-            "halstead_volume", "halstead_difficulty", "halstead_effort",
+            "n1",
+            "n2",
+            "N1",
+            "N2",
+            "halstead_volume",
+            "halstead_difficulty",
+            "halstead_effort",
         ]:
             assert key in result, f"Missing Halstead key: {key}"
 

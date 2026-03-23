@@ -114,13 +114,13 @@ class PythonAnalyzer(BaseAnalyzer):
             "comment_density": layer2["comment_density"],
             "docstring_density": layer2["docstring_density"],
             # Code style — generic names
-            "lint_violations": metrics.ruff_violations,
-            "linter_score": metrics.pylint_score,
+            "lint_violations": metrics.lint_violations,
+            "linter_score": metrics.linter_score,
             # Security — generic names
-            "security_high": metrics.bandit_high,
-            "security_medium": metrics.bandit_medium,
+            "security_high": metrics.security_high,
+            "security_medium": metrics.security_medium,
             # Type safety — generic name
-            "type_errors": metrics.mypy_errors,
+            "type_errors": metrics.type_errors,
             # Halstead
             **halstead,
             # Metadata
@@ -130,11 +130,11 @@ class PythonAnalyzer(BaseAnalyzer):
             "error_detail": None,
             "tool_errors": None,
             # Legacy names (dual-emit for backward compat with quality_profile.py)
-            "ruff_violations": metrics.ruff_violations,
-            "pylint_score": metrics.pylint_score,
-            "bandit_high": metrics.bandit_high,
-            "bandit_medium": metrics.bandit_medium,
-            "mypy_errors": metrics.mypy_errors,
+            "ruff_violations": metrics.lint_violations,
+            "pylint_score": metrics.linter_score,
+            "bandit_high": metrics.security_high,
+            "bandit_medium": metrics.security_medium,
+            "mypy_errors": metrics.type_errors,
         }
 
         return result
@@ -176,9 +176,7 @@ class PythonAnalyzer(BaseAnalyzer):
         result["docstring_density"] = round(doc_density, 4)
         result["function_count"] = func_count
         result["class_count"] = _count_classes(tree)
-        result["comment_density"] = round(
-            _comment_density(source, result["loc"]), 4
-        )
+        result["comment_density"] = round(_comment_density(source, result["loc"]), 4)
 
         # Maintainability index via radon
         try:

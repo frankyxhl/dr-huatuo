@@ -3,6 +3,8 @@ Python code quality report generator.
 Supports multiple output formats: terminal / HTML / Markdown / JSON.
 """
 
+import functools
+import inspect
 import json
 import os
 import re
@@ -30,11 +32,11 @@ class FileMetrics:
     max_complexity: int = 0
     avg_complexity: float = 0.0
     func_count: int = 0
-    ruff_violations: int = 0
-    mypy_errors: int = 0
-    bandit_high: int = 0
-    bandit_medium: int = 0
-    pylint_score: float = 0.0
+    lint_violations: int = 0
+    type_errors: int = 0
+    security_high: int = 0
+    security_medium: int = 0
+    linter_score: float = 0.0
     line_count: int = 0
     score: float = 0.0
     grade: str = "N/A"
@@ -44,6 +46,53 @@ class FileMetrics:
     ruff_issues: list = field(default_factory=list)
     mypy_issues: list = field(default_factory=list)
     bandit_issues: list = field(default_factory=list)
+
+    def __getattr__(self, name):
+        """Backward-compat aliases for old field names."""
+        _aliases = {
+            "ruff_violations": "lint_violations",
+            "pylint_score": "linter_score",
+            "mypy_errors": "type_errors",
+            "bandit_high": "security_high",
+            "bandit_medium": "security_medium",
+        }
+        if name in _aliases:
+            import warnings
+
+            warnings.warn(
+                f"FileMetrics.{name} is deprecated, use {_aliases[name]}",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return getattr(self, _aliases[name])
+        raise AttributeError(f"'FileMetrics' has no attribute '{name}'")
+
+
+# Wrap __init__ to accept old field names as kwargs
+_FM_ALIASES = {
+    "ruff_violations": "lint_violations",
+    "pylint_score": "linter_score",
+    "mypy_errors": "type_errors",
+    "bandit_high": "security_high",
+    "bandit_medium": "security_medium",
+}
+
+_fm_original_init = FileMetrics.__init__
+_fm_original_sig = inspect.signature(_fm_original_init)
+
+
+@functools.wraps(_fm_original_init)
+def _fm_compat_init(self, *args, **kwargs):
+    for old, new in _FM_ALIASES.items():
+        if old in kwargs:
+            kwargs[new] = kwargs.pop(old)
+    _fm_original_init(self, *args, **kwargs)
+
+
+_fm_compat_init.__signature__ = _fm_original_sig
+
+
+FileMetrics.__init__ = _fm_compat_init
 
 
 @dataclass
@@ -122,7 +171,7 @@ class CodeAnalyzer:
         # Ruff
         if self.available_tools.get("ruff"):
             ruff_result = self._run_ruff(file_path)
-            metrics.ruff_violations = len(ruff_result)
+            metrics.lint_violations = len(ruff_result)
             metrics.ruff_issues = ruff_result[:5]
 
         # Radon
@@ -140,10 +189,10 @@ class CodeAnalyzer:
         # Bandit
         if self.available_tools.get("bandit"):
             bandit_result = self._run_bandit(file_path)
-            metrics.bandit_high = sum(
+            metrics.security_high = sum(
                 1 for r in bandit_result if r.get("issue_severity") == "HIGH"
             )
-            metrics.bandit_medium = sum(
+            metrics.security_medium = sum(
                 1 for r in bandit_result if r.get("issue_severity") == "MEDIUM"
             )
             metrics.bandit_issues = bandit_result[:5]
@@ -151,12 +200,12 @@ class CodeAnalyzer:
         # Mypy
         if self.available_tools.get("mypy"):
             mypy_result = self._run_mypy(file_path)
-            metrics.mypy_errors = len(mypy_result)
+            metrics.type_errors = len(mypy_result)
             metrics.mypy_issues = mypy_result[:5]
 
         # Pylint
         if self.available_tools.get("pylint"):
-            metrics.pylint_score = self._run_pylint(file_path)
+            metrics.linter_score = self._run_pylint(file_path)
 
         # Calculate score
         metrics.score = self._calculate_score(metrics)
@@ -217,10 +266,10 @@ class CodeAnalyzer:
         report.avg_score = sum(f.score for f in report.files) / n
         report.avg_complexity = sum(f.avg_complexity for f in report.files) / n
         report.max_complexity = max(f.max_complexity for f in report.files)
-        report.total_violations = sum(f.ruff_violations for f in report.files)
-        report.total_type_errors = sum(f.mypy_errors for f in report.files)
+        report.total_violations = sum(f.lint_violations for f in report.files)
+        report.total_type_errors = sum(f.type_errors for f in report.files)
         report.total_security_issues = sum(
-            f.bandit_high + f.bandit_medium for f in report.files
+            f.security_high + f.security_medium for f in report.files
         )
 
         # Grade distribution (clear first for idempotency)
@@ -558,12 +607,12 @@ class CodeAnalyzer:
 
     def _calculate_score(self, m: FileMetrics) -> float:
         score = 100.0
-        score -= min(m.ruff_violations * 2, 30)
+        score -= min(m.lint_violations * 2, 30)
         if m.max_complexity > 10:
             score -= min((m.max_complexity - 10) * 5, 20)
-        score -= min(m.bandit_high * 15, 30)
-        score -= min(m.bandit_medium * 5, 15)
-        score -= min(m.mypy_errors, 10)
+        score -= min(m.security_high * 15, 30)
+        score -= min(m.security_medium * 5, 15)
+        score -= min(m.type_errors, 10)
         return max(score, 0)
 
     def _get_grade(self, score: float) -> str:
@@ -807,11 +856,11 @@ class ReportRenderer:
                 f"[{color}]{f.score:.0f}[/{color}]",
                 rel_path,
                 cc_text,
-                (str(f.ruff_violations) if f.ruff_violations else "-"),
-                (str(f.mypy_errors) if f.mypy_errors else "-"),
+                (str(f.lint_violations) if f.lint_violations else "-"),
+                (str(f.type_errors) if f.type_errors else "-"),
                 (
-                    str(f.bandit_high + f.bandit_medium)
-                    if (f.bandit_high + f.bandit_medium)
+                    str(f.security_high + f.security_medium)
+                    if (f.security_high + f.security_medium)
                     else "-"
                 ),
                 str(f.line_count),
@@ -1102,10 +1151,15 @@ class ReportRenderer:
                     "full_path": f.file_path,
                     "score": f.score,
                     "max_complexity": f.max_complexity,
-                    "ruff_violations": f.ruff_violations,
-                    "mypy_errors": f.mypy_errors,
-                    "bandit_high": f.bandit_high,
-                    "bandit_medium": f.bandit_medium,
+                    "lint_violations": f.lint_violations,
+                    "type_errors": f.type_errors,
+                    "security_high": f.security_high,
+                    "security_medium": f.security_medium,
+                    # Legacy keys for backward compat
+                    "ruff_violations": f.lint_violations,
+                    "mypy_errors": f.type_errors,
+                    "bandit_high": f.security_high,
+                    "bandit_medium": f.security_medium,
                     "line_count": f.line_count,
                     "complexity_hotspots": f.complexity_hotspots,
                     "ruff_issues": f.ruff_issues,
@@ -1668,11 +1722,11 @@ class="expand-icon">&#9654;</span></td>';
                 html += '<td class="' \
 + ccClass + '">' + f.max_complexity + '</td>';
                 html += '<td>' \
-+ (f.ruff_violations || '-') + '</td>';
++ (f.lint_violations || '-') + '</td>';
                 html += '<td>' \
-+ (f.mypy_errors || '-') + '</td>';
++ (f.type_errors || '-') + '</td>';
                 html += '<td>' \
-+ ((f.bandit_high + f.bandit_medium) || '-') + '</td>';
++ ((f.security_high + f.security_medium) || '-') + '</td>';
                 html += '<td>' \
 + f.line_count + '</td>';
                 html += '</tr>';
@@ -2239,11 +2293,11 @@ document.body.getAttribute(\
                 f'    <td class="{cc_class}">'
                 f"{f.max_complexity}</td>\n"
                 f"    <td>"
-                f"{f.ruff_violations or '-'}</td>\n"
+                f"{f.lint_violations or '-'}</td>\n"
                 f"    <td>"
-                f"{f.mypy_errors or '-'}</td>\n"
+                f"{f.type_errors or '-'}</td>\n"
                 f"    <td>"
-                f"{(f.bandit_high + f.bandit_medium) or '-'}"
+                f"{(f.security_high + f.security_medium) or '-'}"
                 f"</td>\n"
                 f"    <td>{f.line_count}</td>\n"
                 f"</tr>"

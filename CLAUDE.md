@@ -50,25 +50,33 @@ Additional venv dependencies: `rich` (terminal rendering), `pytest`, `pytest-cov
 
 ## Architecture
 
-Two main modules with distinct roles:
+### Plugin System
 
-- **`code_analyzer.py`** — Lightweight single-file analyzer. `CodeAnalyzer` class runs each tool via subprocess, collects results into a `CodeMetrics` dataclass, computes a 0-100 score. Entry point: `review_code(path)`.
+- **`analyzers/base.py`** — `LanguageAnalyzer` protocol + `BaseAnalyzer` base class + `ToolNotFoundError`
+- **`analyzers/python.py`** — `PythonAnalyzer` wraps `CodeAnalyzer` + Layer 2 metrics (radon MI, complexipy, AST). Registered for `.py` files.
+- **`analyzers/__init__.py`** — Registry with `register()`, `create_analyzer()`, auto-registers `PythonAnalyzer`
 
-- **`code_reporter.py`** — Full project analyzer with rich output. Contains its own `CodeAnalyzer` (enhanced version with AST-based complexity breakdown), `ProjectReport`/`FileMetrics` dataclasses, and `ReportRenderer` that outputs to terminal (via `rich`), JSON, Markdown, or HTML (with Chart.js). Entry point: `generate_report(path, format, exclude, output_file)`.
+### Core Modules
 
-- **`example_code.py`** — Intentionally flawed sample code for demo/testing (eval usage, high complexity, hardcoded secrets, duplicate functions).
+- **`cli.py`** — Unified CLI (`ht check`, `ht report`, `ht version`). Uses `create_analyzer()` from registry.
+- **`code_analyzer.py`** — `CodeAnalyzer` class runs ruff/radon/bandit/mypy/pylint via subprocess, returns `CodeMetrics` dataclass. Legacy module, wrapped by `PythonAnalyzer`.
+- **`code_reporter.py`** — Full project reports. Own `CodeAnalyzer` + `FileMetrics` + `ReportRenderer` (terminal/HTML/JSON/Markdown). Entry point: `generate_report()`.
+- **`quality_profile.py`** — 5-dimension quality profile (Maintainability, Complexity, Code Style, Documentation, Security). Language-agnostic.
+- **`example_code.py`** — Intentionally flawed sample code for demo/testing.
+
+### Field Names (Generic)
+
+Dataclasses use generic field names (HUA-2129 Phase 3):
+`lint_violations`, `linter_score`, `security_high`, `security_medium`, `type_errors`.
+Old names (`ruff_violations`, `pylint_score`, `bandit_high`, `bandit_medium`, `mypy_errors`) supported via `__getattr__` and `__init__` compat wrappers for backward compat with research modules.
 
 ### Scoring System
 
-Score starts at 100, deductions: ruff violations (-2 each, max -30), complexity >10 (`(cc-10)*5`, max -20), bandit HIGH (-15 each, max -30), bandit MEDIUM (-5 each, max -15), mypy errors (-1 each, max -10). Floor at 0. Grades: A (90+), B (80+), C (70+), D (60+), F (<60). Grade labels include English description, e.g. `"A (Excellent)"`, `"F (Fail)"`.
-
-### Key Pattern
-
-Both modules shell out to analysis tools via `subprocess.run()` with JSON output flags, parse the JSON results, and aggregate into dataclasses. The `code_reporter.py` version additionally uses Python's `ast` module to provide per-function complexity breakdowns showing exact branch points.
+Unified across both analyzers (HUA-2130-ADR): score starts at 100, deductions: lint violations (-2 each, max -30), complexity >10 (`(cc-10)*5`, max -20), security HIGH (-15 each, max -30), security MEDIUM (-5 each, max -15), type errors (-1 each, max -10). Floor at 0. Grades: A (90+), B (80+), C (70+), D (60+), F (<60). Labels: `"A (Excellent)"`, `"F (Fail)"`.
 
 ### Testing Pattern
 
-Unit tests avoid the `_check_tools()` subprocess calls by instantiating `CodeAnalyzer` via `object.__new__(CodeAnalyzer)` (bypassing `__init__`). See `tests/conftest.py` for shared fixtures covering both `CodeMetrics` and `FileMetrics`. Note that `code_analyzer.py` and `code_reporter.py` define **separate** `CodeAnalyzer` classes with different field names (`max_cyclomatic_complexity` vs `max_complexity`).
+Unit tests avoid subprocess calls by instantiating `CodeAnalyzer` via `object.__new__(CodeAnalyzer)` (bypassing `__init__`). See `tests/conftest.py` for shared fixtures. `PythonAnalyzer` tests in `tests/test_python_analyzer.py`. Registry tests in `tests/test_analyzer_registry.py`.
 
 ### Reference Document
 
@@ -82,16 +90,20 @@ All code must be written in English: comments, docstrings, variable names, log m
 
 This project uses the Alfred document system (prefix: `HUA`). Documents live in `rules/`.
 
-### Session Start (MANDATORY)
+### Workflow (Full — Option C)
 
-Every session must begin by running `af guide` and following the decision tree to route the task:
+At session start:
+1. `af guide --root /Users/frank/Projects/huatuo` — see routing (PKG → USR → PRJ layers)
 
-```bash
-af guide         # Read the decision tree, determine which SOP to follow
-af list          # See all project documents
-```
+Before every task:
+2. From the decision tree, identify which SOPs apply to this task
+3. `af plan <SOP_IDs>` — generate step-by-step workflow checklist
+4. Follow each step, declaring active SOP at transitions (COR-1402)
+5. Do not commit code without completing review steps
+6. At task end, use the plan output as completion checklist
 
-Route the task per COR-1103 before doing any work. Declare the active SOP (COR-1402) before starting.
+`af guide` = once per session (routing context).
+`af plan` = before EVERY task (checklist from SOPs).
 
 ### Common af Commands
 
