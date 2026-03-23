@@ -16,7 +16,7 @@ from typing import Iterator, Optional
 from rich.console import Console
 
 from dr_huatuo import __version__
-from dr_huatuo.analyzers import ToolNotFoundError, create_analyzer
+from dr_huatuo.analyzers import ANALYZERS, ToolNotFoundError, create_analyzer
 from dr_huatuo.quality_profile import QualityProfile, profile_file
 
 # Grade ordering for quality gate comparisons (higher = worse)
@@ -33,15 +33,24 @@ console = Console()
 # ===================================================================
 
 
-def _discover_files(path: str, exclude: list[str]) -> Iterator[Path]:
-    """Discover Python files to analyze.
+def _supported_extensions() -> set[str]:
+    """Return set of file extensions supported by registered analyzers."""
+    return set(ANALYZERS.keys())
+
+
+def _discover_files(
+    path: str, exclude: list[str], language: str | None = None
+) -> Iterator[Path]:
+    """Discover files to analyze based on registered analyzer extensions.
 
     Args:
         path: File or directory path.
         exclude: Directory names to exclude.
+        language: If set, only yield files for this language
+            (e.g., "python", "typescript").
 
     Yields:
-        Path objects for each .py file found.
+        Path objects for each supported file found.
 
     Raises:
         FileNotFoundError: If path does not exist.
@@ -50,15 +59,24 @@ def _discover_files(path: str, exclude: list[str]) -> Iterator[Path]:
     if not p.exists():
         raise FileNotFoundError(f"Path does not exist: {p}")
 
+    if language:
+        # Filter extensions to those matching the requested language
+        exts = {ext for ext, cls in ANALYZERS.items() if cls.name == language}
+    else:
+        exts = _supported_extensions()
+
     if p.is_file():
-        yield p
+        if p.suffix in exts:
+            yield p
         return
 
-    for f in sorted(p.rglob("*.py")):
-        # Skip excluded directories
+    for f in sorted(p.rglob("*")):
+        if f.suffix not in exts:
+            continue
         if any(ex in f.parts for ex in exclude):
             continue
-        yield f
+        if f.is_file():
+            yield f
 
 
 # ===================================================================
@@ -297,41 +315,53 @@ def cmd_check(args: argparse.Namespace) -> int:
 
     Returns exit code: 0 for pass, 1 for quality gate violation.
     """
-    default_exclude = [".venv", "__pycache__", ".git"]
+    default_exclude = [".venv", "__pycache__", ".git", "node_modules"]
     exclude = getattr(args, "exclude", default_exclude)
+    language = getattr(args, "language", None)
 
     try:
-        files = list(_discover_files(args.path, exclude))
+        files = list(_discover_files(args.path, exclude, language=language))
     except FileNotFoundError as e:
         console.print(f"[red]Error:[/red] {e}", highlight=False)
         return 1
 
     if not files:
-        console.print("[yellow]No Python files found.[/yellow]")
+        console.print("[yellow]No supported files found.[/yellow]")
         return 0
 
-    # Create analyzer once and reuse across files
-    first_py = next((f for f in files if f.suffix == ".py"), files[0])
-    try:
-        analyzer = create_analyzer(first_py)
-    except ToolNotFoundError as e:
-        console.print(f"[red]Error:[/red] {e}", highlight=False)
-        return 1
+    # Group files by analyzer class (not extension) to batch correctly
+    from collections import defaultdict
 
-    if analyzer is None:
-        console.print("[yellow]No supported file types found.[/yellow]")
-        return 0
+    by_analyzer: dict[str, list[Path]] = defaultdict(list)
+    for f in files:
+        cls = ANALYZERS.get(f.suffix)
+        if cls:
+            by_analyzer[cls.name].append(f)
 
     profiles: list[tuple[str, QualityProfile]] = []
 
-    for fpath in files:
+    # Create one analyzer per language, batch analyze
+    for _lang_name, lang_files in by_analyzer.items():
         try:
-            merged = analyzer.analyze_file(fpath)
-            profile = profile_file(merged)
-            profiles.append((str(fpath), profile))
-            _render_file_profile(str(fpath), profile)
+            project_root = Path(args.path).resolve()
+            if project_root.is_file():
+                project_root = project_root.parent
+            analyzer = create_analyzer(lang_files[0], project_root=project_root)
+        except ToolNotFoundError as e:
+            console.print(f"[yellow]Skipping {_lang_name} files:[/yellow] {e}")
+            continue
+
+        if analyzer is None:
+            continue
+
+        try:
+            batch_results = analyzer.analyze_batch(lang_files)
+            for fpath, merged in zip(lang_files, batch_results):
+                profile = profile_file(merged)
+                profiles.append((str(fpath), profile))
+                _render_file_profile(str(fpath), profile)
         except Exception as e:
-            console.print(f"\n[red]Error analyzing {fpath}:[/red] {e}")
+            console.print(f"\n[red]Error analyzing {_lang_name} files:[/red] {e}")
 
     if not profiles:
         console.print("[yellow]No files could be analyzed.[/yellow]")
@@ -485,8 +515,13 @@ output:
         "-e",
         "--exclude",
         nargs="+",
-        default=[".venv", "__pycache__", ".git"],
-        help="Directories to exclude (default: .venv __pycache__ .git)",
+        default=[".venv", "__pycache__", ".git", "node_modules"],
+        help="Directories to exclude (default: .venv __pycache__ .git node_modules)",
+    )
+    check_parser.add_argument(
+        "--language",
+        default=None,
+        help="Filter by language (e.g., python, typescript)",
     )
 
     # report subcommand

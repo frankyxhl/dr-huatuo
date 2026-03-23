@@ -28,8 +28,9 @@ Product roadmap for dr-huatuo, organized into milestones. Each milestone groups 
 | 1 | **Foundation** | Single-file analyzer, project reporter, tests, CI/CD, PyPI | Done | v0.4.0 |
 | 2 | **Quality Profile & CLI** | 5-dimension quality profile, `ht` CLI, quality gate, HTML drilldown | Done | HUA-2122, HUA-2124, HUA-2125, HUA-2126 |
 | 3 | **Scoring Consistency** | Unified scoring formula, venv tool detection fix, missing-tool warnings | Done | HUA-2130-ADR, v0.4.0 |
-| 4 | **Analyzer Unification** | Extract shared `PythonAnalyzer`, eliminate CodeAnalyzer duplication | Pending | HUA-2129 Phase 1–4 |
-| 5 | **Multi-Language** | TypeScriptAnalyzer, mixed-project support | Pending | HUA-2129 Phase 5–6 |
+| 4 | **Analyzer Unification** | Extract shared `PythonAnalyzer`, eliminate CodeAnalyzer duplication | Done | HUA-2129 Phase 1–4 |
+| 5 | **Multi-Language** | TypeScriptAnalyzer, mixed-project support | In Progress | HUA-2129 Phase 5–6 |
+| 7 | **GitHub Action** | Composite action for CI integration (`uses: frankyxhl/dr-huatuo@v1`) | Planned | PRP TBD |
 | 6 | **Research Pipeline** | Dataset annotation, deduplication, BugsInPy validation, scoring optimizer | Done | HUA-2109–HUA-2121 |
 
 ---
