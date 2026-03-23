@@ -2,7 +2,7 @@
   <img src="assets/logo.png" width="200" alt="Huatuo">
 </p>
 
-<h1 align="center">dr-huatuo</h1>
+<h1 align="center">Dr. Huatuo</h1>
 <p align="center"><strong>Code Quality Diagnosis Toolkit</strong></p>
 
 <p align="center">
@@ -32,6 +32,8 @@ dr-huatuo orchestrates 6 static analysis tools (ruff, radon, bandit, mypy, pylin
 
 ```bash
 pip install dr-huatuo
+# or
+pipx install dr-huatuo
 
 # Check a file
 ht check myfile.py
@@ -46,19 +48,19 @@ ht report src/ -f html -o report.html
 ht version
 ```
 
-## Example Output
+## Screenshots
 
-```
-src/app.py
-  Maintainability    A  (maintainability_index=A)
-  Complexity         C  (cognitive_complexity=C, max_nesting_depth=A)
-  Code Style         A  (lint_violations=A, linter_score=A)
-  Documentation      B  (docstring_density=B, comment_density=A)
-  Security           PASS
+### Terminal Report (`ht report src/`)
 
-  Action items:
-    1. Reduce cognitive complexity (18 → ≤15 for B)
-```
+<p align="center">
+  <img src="assets/screenshot-terminal.png" width="700" alt="Terminal report showing file scores, complexity, and suggested actions">
+</p>
+
+### HTML Report (`ht report src/ -f html`)
+
+<p align="center">
+  <img src="assets/screenshot-report.png" width="700" alt="Interactive HTML report with complexity hotspots and security issues">
+</p>
 
 ## Quality Dimensions
 
