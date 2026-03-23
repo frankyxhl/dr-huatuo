@@ -43,15 +43,17 @@ Direct commits to main bypass review gates and make it hard to revert individual
    git push -u origin <type>/<description>
    ```
 
-4. **Create PR** when code review passes (Codex+Gemini ≥ 9)
+4. **Check README** — if the change affects user-facing features, CLI, or installation, update `README.md` in the same branch
+
+5. **Create PR** when code review passes (Codex+Gemini ≥ 9)
    ```bash
    gh pr create --base main --head <type>/<description>
    ```
    PR body must include: summary, review scores, test plan
 
-5. **CI must pass** — wait for GitHub Actions (test + lint + format) to go green
+6. **CI must pass** — wait for GitHub Actions (test + lint + format) to go green
 
-6. **Merge** — a PR may be merged only when:
+7. **Merge** — a PR may be merged only when:
    - Review scores meet the Codex+Gemini ≥ 9 threshold
    - All required CI status checks are green
    - The branch is up to date with main
@@ -60,7 +62,7 @@ Direct commits to main bypass review gates and make it hard to revert individual
    ```
    Merge method: **squash merge** (default, keeps main history linear). Use `--merge` only when individual commit history is needed (e.g., multi-phase work).
 
-7. **Clean up**
+8. **Clean up**
    ```bash
    git checkout main && git pull origin main
    git branch -D <type>/<description>  # -D required after squash merge
