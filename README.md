@@ -122,14 +122,12 @@ All tools are installed automatically as dependencies — no manual setup needed
 
 ## Roadmap
 
-| # | Milestone | Status |
-|---|-----------|--------|
-| 1 | Foundation — single-file analyzer, project reporter, tests, CI/CD, PyPI | Done |
-| 2 | Quality Profile & CLI — 5-dimension profile, `ht` CLI, quality gate, HTML drilldown | Done |
-| 3 | Scoring Consistency — unified scoring formula, tool detection fix | Done |
-| 4 | Analyzer Unification — plugin protocol, `PythonAnalyzer`, generic field names | Done |
-| 5 | Multi-Language — TypeScript analyzer, mixed-project support | Planned |
-| 6 | Research Pipeline — dataset annotation, deduplication, BugsInPy validation | Done |
+- [x] Foundation — single-file analyzer, project reporter, tests, CI/CD, PyPI
+- [x] Quality Profile & CLI — 5-dimension profile, `ht` CLI, quality gate, HTML drilldown
+- [x] Scoring Consistency — unified scoring formula, tool detection fix
+- [x] Analyzer Unification — plugin protocol, `PythonAnalyzer`, generic field names
+- [ ] Multi-Language — TypeScript analyzer, mixed-project support
+- [x] Research Pipeline — dataset annotation, deduplication, BugsInPy validation
 
 ## License
 
