@@ -7,7 +7,6 @@ Subcommands:
 """
 
 import argparse
-import ast
 import importlib.metadata
 import subprocess
 import sys
@@ -17,19 +16,8 @@ from typing import Iterator, Optional
 from rich.console import Console
 
 from dr_huatuo import __version__
-from dr_huatuo.code_analyzer import CodeAnalyzer, CodeMetrics
+from dr_huatuo.analyzers import ToolNotFoundError, create_analyzer
 from dr_huatuo.quality_profile import QualityProfile, profile_file
-
-# Control-flow node types for nesting depth calculation
-_CONTROL_FLOW_NODES = (
-    ast.If,
-    ast.For,
-    ast.While,
-    ast.Try,
-    ast.With,
-    ast.AsyncFor,
-    ast.AsyncWith,
-)
 
 # Grade ordering for quality gate comparisons (higher = worse)
 _GRADE_ORDER = {"A": 0, "B": 1, "C": 2, "D": 3}
@@ -71,171 +59,6 @@ def _discover_files(path: str, exclude: list[str]) -> Iterator[Path]:
         if any(ex in f.parts for ex in exclude):
             continue
         yield f
-
-
-# ===================================================================
-# Layer 2 metrics gathering
-# ===================================================================
-
-
-def _max_nesting_depth(tree: ast.AST) -> int:
-    """Calculate maximum nesting depth of control-flow blocks."""
-    max_depth = 0
-
-    def _walk(node: ast.AST, depth: int) -> None:
-        nonlocal max_depth
-        for child in ast.iter_child_nodes(node):
-            if isinstance(child, _CONTROL_FLOW_NODES):
-                new_depth = depth + 1
-                if new_depth > max_depth:
-                    max_depth = new_depth
-                _walk(child, new_depth)
-            elif isinstance(
-                child,
-                (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef),
-            ):
-                _walk(child, 0)
-            else:
-                _walk(child, depth)
-
-    _walk(tree, 0)
-    return max_depth
-
-
-def _docstring_density(tree: ast.AST) -> tuple[float, int]:
-    """Calculate docstring_density = functions_with_docstring / function_count.
-
-    Returns (density, function_count).
-    """
-    func_count = 0
-    doc_count = 0
-    for node in ast.walk(tree):
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            func_count += 1
-            if (
-                node.body
-                and isinstance(node.body[0], ast.Expr)
-                and isinstance(node.body[0].value, ast.Constant)
-                and isinstance(node.body[0].value.value, str)
-            ):
-                doc_count += 1
-    if func_count == 0:
-        return 0.0, 0
-    return doc_count / func_count, func_count
-
-
-def _comment_density(source: str, loc: int) -> float:
-    """Calculate comment_density = comment_lines / loc."""
-    if loc == 0:
-        return 0.0
-    lines = source.splitlines()
-    comment_count = 0
-    for i, line in enumerate(lines):
-        stripped = line.lstrip()
-        if not stripped.startswith("#"):
-            continue
-        if i == 0 and stripped.startswith("#!"):
-            continue
-        if "coding" in stripped and ("-*-" in stripped or "coding:" in stripped):
-            continue
-        comment_count += 1
-    return comment_count / loc
-
-
-def _count_classes(tree: ast.AST) -> int:
-    """Count all ClassDef nodes."""
-    return sum(1 for node in ast.walk(tree) if isinstance(node, ast.ClassDef))
-
-
-def _gather_layer2(path: str) -> dict:
-    """Compute Layer 2 metrics that CodeMetrics does not provide.
-
-    Returns dict with: maintainability_index, cognitive_complexity,
-    max_nesting_depth, docstring_density, comment_density, loc,
-    function_count, class_count, data_warnings.
-    """
-    result: dict = {
-        "maintainability_index": None,
-        "cognitive_complexity": None,
-        "max_nesting_depth": 0,
-        "docstring_density": 0.0,
-        "comment_density": 0.0,
-        "loc": 0,
-        "function_count": 0,
-        "class_count": 0,
-        "data_warnings": [],
-    }
-
-    source = Path(path).read_text(encoding="utf-8", errors="replace")
-    lines = source.splitlines()
-    result["loc"] = len(lines)
-
-    if not source.strip():
-        return result
-
-    # AST-based metrics
-    try:
-        tree = ast.parse(source)
-    except SyntaxError:
-        return result
-
-    result["max_nesting_depth"] = _max_nesting_depth(tree)
-    doc_density, func_count = _docstring_density(tree)
-    result["docstring_density"] = round(doc_density, 4)
-    result["function_count"] = func_count
-    result["class_count"] = _count_classes(tree)
-    result["comment_density"] = round(_comment_density(source, result["loc"]), 4)
-
-    # Maintainability index via radon
-    try:
-        from radon.metrics import mi_visit
-
-        mi = mi_visit(source, True)
-        result["maintainability_index"] = round(mi, 1) if mi is not None else None
-    except Exception:
-        pass
-
-    # Cognitive complexity via complexipy
-    try:
-        from complexipy import file_complexity
-
-        fc = file_complexity(path)
-        result["cognitive_complexity"] = fc.complexity
-    except Exception:
-        pass
-
-    return result
-
-
-# ===================================================================
-# Metrics dict construction
-# ===================================================================
-
-
-def _build_metrics_dict(cm: CodeMetrics, layer2: dict) -> dict:
-    """Combine CodeMetrics + Layer 2 into a dict for quality_profile.
-
-    Field mapping:
-      - cm.max_cyclomatic_complexity -> cyclomatic_complexity
-      - cm.functions_analyzed -> (not used, layer2.function_count preferred)
-    """
-    return {
-        "cyclomatic_complexity": cm.max_cyclomatic_complexity,
-        "ruff_violations": cm.ruff_violations,
-        "pylint_score": cm.pylint_score,
-        "mypy_errors": cm.mypy_errors,
-        "bandit_high": cm.bandit_high,
-        "bandit_medium": cm.bandit_medium,
-        "maintainability_index": layer2["maintainability_index"],
-        "cognitive_complexity": layer2["cognitive_complexity"],
-        "max_nesting_depth": layer2["max_nesting_depth"],
-        "docstring_density": layer2["docstring_density"],
-        "comment_density": layer2["comment_density"],
-        "loc": layer2["loc"],
-        "function_count": layer2["function_count"],
-        "class_count": layer2["class_count"],
-        "data_warnings": layer2["data_warnings"],
-    }
 
 
 # ===================================================================
@@ -487,14 +310,23 @@ def cmd_check(args: argparse.Namespace) -> int:
         console.print("[yellow]No Python files found.[/yellow]")
         return 0
 
-    analyzer = CodeAnalyzer()
+    # Create analyzer once and reuse across files
+    first_py = next((f for f in files if f.suffix == ".py"), files[0])
+    try:
+        analyzer = create_analyzer(first_py)
+    except ToolNotFoundError as e:
+        console.print(f"[red]Error:[/red] {e}", highlight=False)
+        return 1
+
+    if analyzer is None:
+        console.print("[yellow]No supported file types found.[/yellow]")
+        return 0
+
     profiles: list[tuple[str, QualityProfile]] = []
 
     for fpath in files:
         try:
-            metrics = analyzer.analyze(str(fpath))
-            layer2 = _gather_layer2(str(fpath))
-            merged = _build_metrics_dict(metrics, layer2)
+            merged = analyzer.analyze_file(fpath)
             profile = profile_file(merged)
             profiles.append((str(fpath), profile))
             _render_file_profile(str(fpath), profile)

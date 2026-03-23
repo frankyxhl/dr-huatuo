@@ -36,3 +36,9 @@ def create_analyzer(
     if cls is None:
         return None
     return cls(project_root=project_root)
+
+
+# Auto-register built-in analyzers (must be after register() definition)
+from dr_huatuo.analyzers.python import PythonAnalyzer  # noqa: E402
+
+register(PythonAnalyzer)

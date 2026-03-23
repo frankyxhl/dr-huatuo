@@ -3,15 +3,14 @@
 Tests cover:
 - Subcommand routing (check, report, version)
 - File discovery (single file, directory, exclusion)
-- Layer 2 metrics gathering (_gather_layer2)
 - Quality gate logic (--fail-on with grade and dimension filtering)
 - Terminal output rendering
 - Security + grade interaction in quality gates
 """
 
+import argparse
 import subprocess
 import sys
-import textwrap
 from pathlib import Path
 
 import pytest
@@ -85,145 +84,6 @@ class TestDiscoverFiles:
         (tmp_path / "top.py").write_text("y = 2\n")
         result = sorted(_discover_files(str(tmp_path), []))
         assert len(result) == 2
-
-
-# ===================================================================
-# Layer 2 metrics gathering
-# ===================================================================
-
-
-class TestGatherLayer2:
-    """Test _gather_layer2 for computing missing fields."""
-
-    def test_loc_counts_lines(self, tmp_path):
-        from dr_huatuo.cli import _gather_layer2
-
-        f = tmp_path / "test.py"
-        f.write_text("a = 1\nb = 2\nc = 3\n")
-        result = _gather_layer2(str(f))
-        assert result["loc"] == 3
-
-    def test_function_count(self, tmp_path):
-        from dr_huatuo.cli import _gather_layer2
-
-        f = tmp_path / "test.py"
-        f.write_text(
-            textwrap.dedent("""\
-            def foo():
-                pass
-
-            def bar():
-                pass
-
-            async def baz():
-                pass
-            """)
-        )
-        result = _gather_layer2(str(f))
-        assert result["function_count"] == 3
-
-    def test_class_count(self, tmp_path):
-        from dr_huatuo.cli import _gather_layer2
-
-        f = tmp_path / "test.py"
-        f.write_text(
-            textwrap.dedent("""\
-            class Foo:
-                pass
-
-            class Bar:
-                class Inner:
-                    pass
-            """)
-        )
-        result = _gather_layer2(str(f))
-        assert result["class_count"] == 3
-
-    def test_max_nesting_depth(self, tmp_path):
-        from dr_huatuo.cli import _gather_layer2
-
-        f = tmp_path / "test.py"
-        f.write_text(
-            textwrap.dedent("""\
-            def foo():
-                if True:
-                    for x in []:
-                        if x:
-                            pass
-            """)
-        )
-        result = _gather_layer2(str(f))
-        assert result["max_nesting_depth"] == 3
-
-    def test_docstring_density(self, tmp_path):
-        from dr_huatuo.cli import _gather_layer2
-
-        f = tmp_path / "test.py"
-        f.write_text(
-            textwrap.dedent('''\
-            def foo():
-                """Has a docstring."""
-                pass
-
-            def bar():
-                pass
-            ''')
-        )
-        result = _gather_layer2(str(f))
-        assert result["docstring_density"] == pytest.approx(0.5)
-
-    def test_comment_density(self, tmp_path):
-        from dr_huatuo.cli import _gather_layer2
-
-        f = tmp_path / "test.py"
-        f.write_text("# comment\nx = 1\ny = 2\n# another\nz = 3\n")
-        result = _gather_layer2(str(f))
-        assert result["comment_density"] == pytest.approx(2 / 5)
-
-    def test_maintainability_index_present(self, tmp_path):
-        from dr_huatuo.cli import _gather_layer2
-
-        f = tmp_path / "test.py"
-        f.write_text("x = 1\n")
-        result = _gather_layer2(str(f))
-        # MI should be a float or None, not missing
-        assert "maintainability_index" in result
-        # For a trivial file, MI should be a positive number
-        if result["maintainability_index"] is not None:
-            assert result["maintainability_index"] > 0
-
-    def test_data_warnings_default_empty(self, tmp_path):
-        from dr_huatuo.cli import _gather_layer2
-
-        f = tmp_path / "test.py"
-        f.write_text("x = 1\n")
-        result = _gather_layer2(str(f))
-        assert result["data_warnings"] == []
-
-    def test_empty_file(self, tmp_path):
-        from dr_huatuo.cli import _gather_layer2
-
-        f = tmp_path / "test.py"
-        f.write_text("")
-        result = _gather_layer2(str(f))
-        assert result["loc"] == 0
-        assert result["function_count"] == 0
-        assert result["class_count"] == 0
-
-    def test_cognitive_complexity_present(self, tmp_path):
-        from dr_huatuo.cli import _gather_layer2
-
-        f = tmp_path / "test.py"
-        f.write_text(
-            textwrap.dedent("""\
-            def foo():
-                if True:
-                    pass
-            """)
-        )
-        result = _gather_layer2(str(f))
-        # cognitive_complexity should be present (int or None if complexipy unavailable)
-        assert "cognitive_complexity" in result
 
 
 # ===================================================================
@@ -406,58 +266,30 @@ class TestQualityGate:
 
 
 # ===================================================================
-# Build metrics dict
+# ToolNotFoundError exits non-zero
 # ===================================================================
 
 
-class TestBuildMetricsDict:
-    """Test _build_metrics_dict combining CodeMetrics + Layer 2."""
+class TestToolNotFoundError:
+    """Test that cmd_check returns exit code 1 when critical tools are missing."""
 
-    def test_field_mapping(self):
-        from dr_huatuo.cli import _build_metrics_dict
-        from dr_huatuo.code_analyzer import CodeMetrics
+    def test_cmd_check_returns_1_on_missing_tools(self, tmp_path, monkeypatch):
+        from dr_huatuo.analyzers.base import ToolNotFoundError
+        from dr_huatuo.cli import cmd_check
 
-        cm = CodeMetrics(
-            file_path="test.py",
-            max_cyclomatic_complexity=12,
-            functions_analyzed=5,
-            ruff_violations=3,
-            pylint_score=8.5,
-            mypy_errors=2,
-            bandit_high=1,
-            bandit_medium=0,
+        f = tmp_path / "test.py"
+        f.write_text("x = 1\n")
+
+        def fake_create_analyzer(*args, **kwargs):
+            raise ToolNotFoundError("ruff not found")
+
+        monkeypatch.setattr("dr_huatuo.cli.create_analyzer", fake_create_analyzer)
+
+        args = argparse.Namespace(
+            command="check", path=str(f), fail_on=None, dimension=None,
+            exclude=[".venv", "__pycache__", ".git"],
         )
-        layer2 = {
-            "maintainability_index": 45.0,
-            "cognitive_complexity": 18,
-            "max_nesting_depth": 3,
-            "docstring_density": 0.60,
-            "comment_density": 0.12,
-            "loc": 100,
-            "function_count": 5,
-            "class_count": 2,
-            "data_warnings": [],
-        }
-        result = _build_metrics_dict(cm, layer2)
-
-        # CodeMetrics fields (mapped names)
-        assert result["cyclomatic_complexity"] == 12
-        assert result["function_count"] == 5  # from layer2, not functions_analyzed
-        assert result["ruff_violations"] == 3
-        assert result["pylint_score"] == 8.5
-        assert result["mypy_errors"] == 2
-        assert result["bandit_high"] == 1
-        assert result["bandit_medium"] == 0
-
-        # Layer 2 fields
-        assert result["maintainability_index"] == 45.0
-        assert result["cognitive_complexity"] == 18
-        assert result["max_nesting_depth"] == 3
-        assert result["docstring_density"] == 0.60
-        assert result["comment_density"] == 0.12
-        assert result["loc"] == 100
-        assert result["class_count"] == 2
-        assert result["data_warnings"] == []
+        assert cmd_check(args) == 1
 
 
 # ===================================================================

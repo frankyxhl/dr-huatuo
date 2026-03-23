@@ -44,6 +44,7 @@
 | 2130 | ADR | Unify Scoring to Strictest Standard |
 | 2131 | PLN | Product Roadmap |
 | 2132 | CHG | Analyzer Plugin Protocol and Registry |
+| 2133 | CHG | Extract PythonAnalyzer from CodeAnalyzer |
 
 ---
 
