@@ -41,6 +41,8 @@
 | 2127 | CHG | CI CD GitHub Actions PyPI |
 | 2128 | CHG | Restructure to src Package Layout |
 | 2129 | PRP | Multi Language Analyzer Plugin Architecture |
+| 2130 | ADR | Unify Scoring to Strictest Standard |
+| 2131 | PLN | Product Roadmap |
 
 ---
 

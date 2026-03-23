@@ -21,9 +21,8 @@ After routing through COR-1103, check these HUA-specific branches:
 1. Changing scoring formula or grade thresholds?
    └── ADR (COR-1100) to record rationale
        └── CHG (COR-1101) to implement
-       └── Update BOTH analyzers while preserving intentional divergence
-           (code_analyzer: x5/cap20, code_reporter: x3/cap25)
-           unless the ADR explicitly changes it
+       └── Update BOTH analyzers to keep scoring unified (HUA-2130-ADR)
+           Both use: x5/cap20, 5 tools (incl. pylint), "A (Excellent)" labels
        └── Update affected test assertions in tests/
 
 2. Adding a new analysis tool? (e.g., pyright, vulture)
@@ -32,15 +31,12 @@ After routing through COR-1103, check these HUA-specific branches:
        └── Touch points: dataclass fields, _run_xxx() method,
            _check_tools(), _calculate_score() (if score-affecting),
            print_report() (code_analyzer), all renderers (code_reporter)
-       └── Note: code_analyzer.py checks 5 tools (incl. pylint),
-           code_reporter.py checks only 4 (no pylint) — decide
-           which analyzer(s) get the new tool
+       └── Both analyzers run 5 tools (unified per HUA-2130-ADR)
 
 3. Bug in tool subprocess parsing?
    └── CHG (COR-1101)
        └── Check if BOTH CodeAnalyzer classes have the same bug
-       └── Note tool asymmetry: code_analyzer.py runs pylint,
-           code_reporter.py does NOT
+       └── Both now run the same 5 tools (unified per HUA-2130-ADR)
 
 4. Report rendering change?
    ├── HTML → CHG (COR-1101)
@@ -68,9 +64,9 @@ After routing through COR-1103, check these HUA-specific branches:
 
 6. Refactoring shared code between the two analyzers?
    └── PRP (COR-1102) → Review (COR-1602 strict)
-       └── Scoring divergence is intentional; do NOT unify
-           unless explicitly directed by an ADR
-       └── This is architectural — affects scoring consistency
+       └── Scoring is now unified (HUA-2130-ADR); refactoring is safe
+       └── HUA-2129-PRP (approved) defines the plugin architecture
+       └── Consult HUA-2131-PLN Milestone 4 for current phase
 
 7. Build/config change? (Makefile, pyproject.toml, dependencies)
    └── CHG (COR-1101)
@@ -110,6 +106,12 @@ After routing through COR-1103, check these HUA-specific branches:
     └── CHG (COR-1101) — high impact, review required
         └── All imports (source + tests), Makefile, CI must be updated together
         └── Package lives in src/dr_huatuo/; entry point: dr_huatuo.cli:main
+
+12. Planning or prioritization? ("what's next", roadmap, milestones)
+    └── Read HUA-2131-PLN (Product Roadmap)
+        └── Identify current milestone and next phase
+        └── Create CHG for the next phase if not already exists
+        └── Update PLN status after completing a milestone
 ```
 
 ---
@@ -118,10 +120,10 @@ After routing through COR-1103, check these HUA-specific branches:
 
 ```
 Scoring formula = project identity; any change requires an ADR with rationale
-Two CodeAnalyzer classes exist with DIFFERENT parameters and tool sets:
-  code_analyzer.py: 5 tools (incl. pylint), complexity x5/cap20, grade "A (Excellent)"
-  code_reporter.py: 4 tools (no pylint), complexity x3/cap25, grade "A"
-  This divergence is intentional — always check both, preserve asymmetry
+Two CodeAnalyzer classes exist — scoring is UNIFIED per HUA-2130-ADR:
+  Both use: 5 tools (incl. pylint), complexity x5/cap20, grade "A (Excellent)"
+  Code duplication remains until HUA-2129 Milestone 4 eliminates it
+Roadmap: HUA-2131-PLN — check at session start for current milestone
 HTML rendering = render_html + 7 helpers (~1140 lines total); test visually
 JSON output is a contract; field changes are breaking changes
 CLI interfaces differ between the two scripts; changes are breaking
@@ -138,8 +140,8 @@ Dependencies: all managed in pyproject.toml (deps, optional-deps, build config)
 
 - **Prefix:** HUA
 - **Python:** 3.13, venv at `.venv/`
-- **Analysis tools:** ruff, radon, bandit, mypy (both analyzers), pylint (code_analyzer.py only)
-- **Test entry point:** `make test` (139 tests via pytest)
+- **Analysis tools:** ruff, radon, bandit, mypy, pylint (all 5 in both analyzers, unified per HUA-2130-ADR)
+- **Test entry point:** `make test` (503 tests via pytest)
 - **Lint entry point:** `make lint` (ruff, rules E/F/W/I, covers code_analyzer.py, code_reporter.py, example_code.py, tests/)
 - **Key documents:**
   - HUA-2100-PRP: Test infrastructure design (Implemented)
@@ -162,3 +164,4 @@ Dependencies: all managed in pyproject.toml (deps, optional-deps, build config)
 | 2026-03-20 | R3 revision: fix golden rules "6 helpers" → "7 helpers" to match decision tree | Frank + Claude Code |
 | 2026-03-20 | Approved: Codex 9.5/10 (R4), Gemini 9.6/10 (R2) | Frank + Claude Code |
 | 2026-03-21 | Add branch 9 (research/dataset work), fix Python 3.12→3.13, update test count 78→139, add recent CHGs to key documents | Claude Code |
+| 2026-03-23 | Update for HUA-2130-ADR: scoring unified, remove divergence notes from branches 1/2/3/6 and golden rules; add branch 12 (roadmap/planning → HUA-2131-PLN); update test count 139→503, tool count to 5 in both | Claude Code |
