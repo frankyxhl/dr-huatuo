@@ -49,7 +49,7 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev,research]"
       - name: Run coverage
-        run: pytest tests/ --cov=dr_huatuo --cov-report=term-missing --cov-report=xml
+        run: pytest tests/ --cov=dr_huatuo --cov-report=term-missing --cov-report=xml --cov-fail-under=60
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
