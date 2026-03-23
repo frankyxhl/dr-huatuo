@@ -286,7 +286,10 @@ class TestToolNotFoundError:
         monkeypatch.setattr("dr_huatuo.cli.create_analyzer", fake_create_analyzer)
 
         args = argparse.Namespace(
-            command="check", path=str(f), fail_on=None, dimension=None,
+            command="check",
+            path=str(f),
+            fail_on=None,
+            dimension=None,
             exclude=[".venv", "__pycache__", ".git"],
         )
         assert cmd_check(args) == 1
