@@ -680,6 +680,80 @@ class TestEnsureNodeOnPath:
 # ===================================================================
 
 
+class TestAddLocalNodeBins:
+    def test_adds_project_root_node_modules(self, tmp_path, monkeypatch):
+        """Adds project_root/node_modules/.bin to PATH if it exists."""
+        bin_dir = tmp_path / "node_modules" / ".bin"
+        bin_dir.mkdir(parents=True)
+        analyzer = object.__new__(TypeScriptAnalyzer)
+        analyzer.project_root = tmp_path
+
+        old_path = os.environ.get("PATH", "")
+        analyzer._add_local_node_bins()
+        new_path = os.environ.get("PATH", "")
+        assert str(bin_dir) in new_path
+        os.environ["PATH"] = old_path
+
+    def test_skips_nonexistent_dir(self, tmp_path):
+        """Does not add to PATH if node_modules/.bin doesn't exist."""
+        analyzer = object.__new__(TypeScriptAnalyzer)
+        analyzer.project_root = tmp_path
+
+        old_path = os.environ.get("PATH", "")
+        analyzer._add_local_node_bins()
+        new_path = os.environ.get("PATH", "")
+        node_bin = str(tmp_path / "node_modules" / ".bin")
+        assert node_bin not in new_path
+        os.environ["PATH"] = old_path
+
+
+class TestTscListFiles:
+    def _make_analyzer(self, project_root) -> TypeScriptAnalyzer:
+        analyzer = object.__new__(TypeScriptAnalyzer)
+        analyzer.project_root = project_root
+        analyzer._tool_versions = {"tsc": "tsc"}
+        return analyzer
+
+    def test_returns_resolved_paths(self, tmp_path, monkeypatch):
+        (tmp_path / "tsconfig.json").write_text("{}")
+
+        def mock_run(cmd, **kwargs):
+            return subprocess.CompletedProcess(
+                cmd, 0, stdout="/abs/path/a.ts\n/abs/path/b.ts\n", stderr=""
+            )
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+        analyzer = self._make_analyzer(tmp_path)
+        result = analyzer._tsc_list_files()
+        assert "/abs/path/a.ts" in result
+        assert "/abs/path/b.ts" in result
+
+    def test_exception_returns_empty_set(self, tmp_path, monkeypatch):
+        (tmp_path / "tsconfig.json").write_text("{}")
+
+        def mock_run(cmd, **kwargs):
+            raise OSError("tsc not found")
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+        analyzer = self._make_analyzer(tmp_path)
+        assert analyzer._tsc_list_files() == set()
+
+    def test_filters_error_lines(self, tmp_path, monkeypatch):
+        (tmp_path / "tsconfig.json").write_text("{}")
+
+        def mock_run(cmd, **kwargs):
+            return subprocess.CompletedProcess(
+                cmd, 1, stdout="/a.ts\nerror TS6053: ...\n/b.ts\n", stderr=""
+            )
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+        analyzer = self._make_analyzer(tmp_path)
+        result = analyzer._tsc_list_files()
+        assert "/a.ts" in result
+        assert "/b.ts" in result
+        assert not any("error" in s for s in result)
+
+
 class TestCheckNpmPackage:
     def test_invalid_package_name_rejected(self):
         """Package names with injection chars are rejected."""
@@ -1017,20 +1091,45 @@ class TestTscProjectMode:
     def test_with_tsconfig_uses_project_flag(self, tmp_path, monkeypatch):
         """When tsconfig.json exists, tsc uses --project flag."""
         (tmp_path / "tsconfig.json").write_text("{}")
+        f = tmp_path / "a.ts"
+        f.write_text("const x = 1;\n")
         captured_cmds: list[list[str]] = []
 
         def mock_run(cmd, **kwargs):
             captured_cmds.append(list(cmd))
+            # --listFiles call returns the file as in-scope
+            if "--listFiles" in cmd:
+                return subprocess.CompletedProcess(
+                    cmd, 0, stdout=str(f.resolve()) + "\n", stderr=""
+                )
             return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
 
         monkeypatch.setattr(subprocess, "run", mock_run)
         analyzer = self._make_analyzer(project_root=tmp_path)
-        f = tmp_path / "a.ts"
         result = analyzer._run_tsc([f])
 
         assert result is not None
         assert "--project" in captured_cmds[0]
         assert result[str(f)] == 0
+
+    def test_project_mode_out_of_scope_returns_none(self, tmp_path, monkeypatch):
+        """In project mode, files not in tsconfig scope get None."""
+        (tmp_path / "tsconfig.json").write_text("{}")
+        f = tmp_path / "a.ts"
+        f.write_text("const x = 1;\n")
+
+        def mock_run(cmd, **kwargs):
+            # --listFiles returns empty (file not in scope)
+            if "--listFiles" in cmd:
+                return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+            return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+        analyzer = self._make_analyzer(project_root=tmp_path)
+        result = analyzer._run_tsc([f])
+
+        assert result is not None
+        assert result[str(f)] is None  # not in scope = unchecked
 
     def test_without_tsconfig_uses_strict(self, tmp_path, monkeypatch):
         """Without tsconfig.json, tsc uses --strict with explicit files."""
