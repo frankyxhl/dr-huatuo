@@ -1193,6 +1193,7 @@ class TestEscomplexExceptions:
 class TestCheckToolsBranches:
     def test_tsc_found_optional(self, monkeypatch):
         """tsc found via shutil.which registers in results."""
+
         def fake_which(name, **kwargs):
             if name in ("node", "eslint", "tsc"):
                 return f"/usr/bin/{name}"
