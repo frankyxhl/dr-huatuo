@@ -10,6 +10,9 @@ __pycache__/
 .ruff_cache/
 .coverage
 
+# Node.js
+node_modules/
+
 # Build
 dist/
 build/

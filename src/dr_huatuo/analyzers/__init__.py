@@ -40,5 +40,7 @@ def create_analyzer(
 
 # Auto-register built-in analyzers (must be after register() definition)
 from dr_huatuo.analyzers.python import PythonAnalyzer  # noqa: E402
+from dr_huatuo.analyzers.typescript import TypeScriptAnalyzer  # noqa: E402
 
 register(PythonAnalyzer)
+register(TypeScriptAnalyzer)

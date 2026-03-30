@@ -1,0 +1,30 @@
+{
+  "name": "huatuo",
+  "version": "1.0.0",
+  "description": "<p align=\"center\">   <img src=\"assets/logo.png\" width=\"200\" alt=\"Huatuo\"> </p>",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/frankyxhl/dr-huatuo.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/frankyxhl/dr-huatuo/issues"
+  },
+  "homepage": "https://github.com/frankyxhl/dr-huatuo#readme",
+  "devDependencies": {
+    "eslint": "^10.1.0",
+    "typescript": "^6.0.2",
+    "typhonjs-escomplex": "^0.1.0"
+  }
+}
