@@ -6,7 +6,7 @@
 <p align="center"><strong>Code Quality Diagnosis Toolkit</strong></p>
 
 <p align="center">
-  <em>5-dimension quality profiling for Python. Named after the legendary physician Hua Tuo (华佗) — it diagnoses code health.</em>
+  <em>5-dimension quality profiling for Python and TypeScript. Named after the legendary physician Hua Tuo (华佗) — it diagnoses code health.</em>
 </p>
 
 <p align="center">
@@ -20,13 +20,13 @@
 
 ## What is dr-huatuo?
 
-dr-huatuo orchestrates 6 static analysis tools (ruff, radon, bandit, mypy, pylint, complexipy) into a unified quality profile with 5 independent dimensions. No single aggregate score — each dimension gets its own grade so you know exactly what to fix.
+dr-huatuo orchestrates static analysis tools into a unified quality profile with 5 independent dimensions. No single aggregate score — each dimension gets its own grade so you know exactly what to fix.
 
+- **Multi-Language** — Python (ruff, radon, bandit, mypy, pylint, complexipy) and TypeScript (eslint, tsc, escomplex)
 - **5-Dimension Quality Profile** — Maintainability, Complexity, Code Style, Documentation, Security
 - **CI Quality Gate** — `--fail-on D` exits non-zero for CI/CD integration
 - **Multiple Output Formats** — Terminal (rich), HTML (interactive with Chart.js), JSON, Markdown
-- **Literature-Backed Thresholds** — McCabe, SonarSource, Microsoft/SEI, with evidence tagging
-- **Plugin Architecture** — Language-agnostic protocol, Python analyzer built-in, TypeScript coming soon
+- **Plugin Architecture** — Language-agnostic protocol, register new analyzers with one line
 
 ## Quick Start
 
@@ -35,10 +35,13 @@ pip install dr-huatuo
 # or
 pipx install dr-huatuo
 
-# Check a file
+# Check a Python file
 ht check myfile.py
 
-# Check a project with CI quality gate
+# Check a TypeScript project
+ht check frontend/src/ --language typescript
+
+# Check a mixed project (auto-detects Python + TypeScript)
 ht check src/ --fail-on D
 
 # Generate interactive HTML report
@@ -84,6 +87,7 @@ ht check src/ --fail-on C               # stricter: fail on C, D, or F
 ht check src/ --fail-on WARN            # fail on any security warning
 ht check src/ --fail-on D --dimension Security  # gate single dimension
 ht check src/ -e .venv tests docs       # exclude directories
+ht check src/ --language typescript     # filter by language
 
 # Project reports
 ht report <path>                         # terminal output (default)
@@ -111,6 +115,7 @@ Grades: **A** (90+) Excellent, **B** (80+) Good, **C** (70+) Fair, **D** (60+) P
 
 ## Tools Orchestrated
 
+### Python
 | Tool | What it checks |
 |---|---|
 | [ruff](https://github.com/astral-sh/ruff) | Lint violations (fast Python linter) |
@@ -120,7 +125,16 @@ Grades: **A** (90+) Excellent, **B** (80+) Good, **C** (70+) Fair, **D** (60+) P
 | [pylint](https://github.com/pylint-dev/pylint) | Code quality score |
 | [complexipy](https://github.com/rohaquinern/complexipy) | Cognitive complexity |
 
-All tools are installed automatically as dependencies — no manual setup needed.
+Python tools are installed automatically as pip dependencies.
+
+### TypeScript
+| Tool | What it checks |
+|---|---|
+| [eslint](https://eslint.org/) | Lint violations, security rules (eslint-plugin-security) |
+| [tsc](https://www.typescriptlang.org/) | Type errors (via tsconfig.json) |
+| [escomplex](https://github.com/typhonjs-node-escomplex/typhonjs-escomplex) | Cyclomatic complexity, maintainability index |
+
+TypeScript tools require Node.js. Install locally: `npm install --save-dev eslint typescript typhonjs-escomplex`
 
 ## Roadmap
 
@@ -128,7 +142,7 @@ All tools are installed automatically as dependencies — no manual setup needed
 - [x] Quality Profile & CLI — 5-dimension profile, `ht` CLI, quality gate, HTML drilldown
 - [x] Scoring Consistency — unified scoring formula, tool detection fix
 - [x] Analyzer Unification — plugin protocol, `PythonAnalyzer`, generic field names
-- [ ] Multi-Language — TypeScript analyzer, mixed-project support
+- [x] Multi-Language — TypeScript analyzer, mixed-project support
 - [x] Research Pipeline — dataset annotation, deduplication, BugsInPy validation
 
 ## License

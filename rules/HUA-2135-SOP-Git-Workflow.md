@@ -53,14 +53,15 @@ Direct commits to main bypass review gates and make it hard to revert individual
 
 6. **CI must pass** — wait for GitHub Actions (test + lint + format) to go green
 
-7. **Merge** — a PR may be merged only when **all** of the following are true:
+7. **Merge** — after user explicitly approves, enable auto-merge:
+   ```bash
+   gh pr merge <number> --auto --squash
+   ```
+   This sets the PR to auto-merge once all CI status checks pass. Prerequisites before requesting user approval:
    - Review scores meet the Codex+Gemini ≥ 9 threshold
-   - All required CI status checks are green (test + lint + format)
    - The branch is up to date with main (no conflicts)
    - **The user has explicitly approved the merge** — agent must never run `gh pr merge` on its own
-   ```bash
-   gh pr merge <number> --squash
-   ```
+
    Merge method: **squash merge** (default, keeps main history linear). Use `--merge` only when individual commit history is needed (e.g., multi-phase work).
 
 8. **Clean up**
@@ -96,3 +97,4 @@ Emergency hotfixes may bypass the feature-branch requirement only for COR-1101 e
 | 2026-03-23 | Initial version | Frank + Claude Code |
 | 2026-03-23 | R1 revision: add emergency exception section, explicit merge criteria, expand When to Use scope, cite SOP IDs in Step 2, add branch naming conventions (hotfix/docs), squash merge as default, add remote branch deletion to cleanup | Claude Code |
 | 2026-03-30 | Add "No auto-merge" rule: agent must never merge PRs without explicit user approval | Claude Code |
+| 2026-03-30 | Update Step 7: use `gh pr merge --auto --squash` for CI-gated auto-merge | Claude Code |
