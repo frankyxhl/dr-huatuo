@@ -4,15 +4,15 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dr-huatuo"
-version = "0.4.0"
-description = "Code quality diagnosis toolkit — 5-dimension maintainability profiling for Python"
+version = "0.5.0"
+description = "Code quality diagnosis toolkit — 5-dimension maintainability profiling for Python and TypeScript"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
 authors = [
     { name = "Frank", email = "franky.xhl@gmail.com" },
 ]
-keywords = ["code-quality", "static-analysis", "maintainability", "complexity", "linting"]
+keywords = ["code-quality", "static-analysis", "maintainability", "complexity", "linting", "typescript"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
