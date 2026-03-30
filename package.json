@@ -24,6 +24,7 @@
   "homepage": "https://github.com/frankyxhl/dr-huatuo#readme",
   "devDependencies": {
     "eslint": "^10.1.0",
-    "typescript": "^6.0.2"
+    "typescript": "^6.0.2",
+    "typhonjs-escomplex": "^0.1.0"
   }
 }
