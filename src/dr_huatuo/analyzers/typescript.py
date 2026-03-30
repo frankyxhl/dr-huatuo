@@ -29,7 +29,23 @@ class TypeScriptAnalyzer(BaseAnalyzer):
     def __init__(self, project_root: Path | None = None) -> None:
         self.project_root = self._find_config_root(project_root)
         self._ensure_node_on_path()
+        self._add_local_node_bins()
         self._tool_versions = self.check_tools()
+
+    def _add_local_node_bins(self) -> None:
+        """Add project-local and CWD node_modules/.bin to PATH."""
+        candidates = []
+        if self.project_root:
+            candidates.append(Path(self.project_root) / "node_modules" / ".bin")
+        cwd_bin = Path.cwd() / "node_modules" / ".bin"
+        if cwd_bin not in candidates:
+            candidates.append(cwd_bin)
+        path = os.environ.get("PATH", "")
+        parts = path.split(os.pathsep)
+        for d in candidates:
+            if d.is_dir() and str(d) not in parts:
+                path = str(d) + os.pathsep + path
+        os.environ["PATH"] = path
 
     @staticmethod
     def _find_config_root(start: Path | None) -> Path | None:
@@ -460,13 +476,19 @@ class TypeScriptAnalyzer(BaseAnalyzer):
         return per_file
 
     def _run_tsc(self, paths: list[Path]) -> dict[str, int | None] | None:
-        """Run tsc --noEmit, return {filepath: error_count or None}."""
+        """Run tsc --noEmit, return {filepath: error_count or None}.
+
+        In --project mode, files not in tsconfig scope get None (unchecked).
+        In explicit-file mode, all files are checked directly.
+        """
         try:
+            using_project = False
             cmd = ["tsc", "--noEmit", "--pretty", "false"]
             if self.project_root:
                 tsconfig = Path(self.project_root) / "tsconfig.json"
                 if tsconfig.exists():
                     cmd.extend(["--project", str(tsconfig)])
+                    using_project = True
                 else:
                     cmd.append("--strict")
                     cmd.extend(str(p) for p in paths)
@@ -482,11 +504,22 @@ class TypeScriptAnalyzer(BaseAnalyzer):
                 cwd=str(self.project_root) if self.project_root else None,
             )
 
-            if result.returncode == 0:
-                return {str(p): 0 for p in paths}
+            if using_project:
+                # Determine which files tsc actually covers via tsconfig
+                in_scope = self._tsc_list_files()
+                # None = not in scope (unchecked), 0 = in scope and clean
+                per_file: dict[str, int | None] = {}
+                for p in paths:
+                    rp = str(p.resolve())
+                    per_file[str(p)] = 0 if rp in in_scope else None
+            else:
+                # Explicit file list mode: all passed files were checked
+                per_file = {str(p): 0 for p in paths}
 
-            # Default to 0 (clean) — only files with errors get incremented
-            per_file: dict[str, int | None] = {str(p): 0 for p in paths}
+            if result.returncode == 0:
+                return per_file
+
+            # Parse errors — increment counts for files with errors
             for line in result.stdout.splitlines():
                 # Format: file.ts(line,col): error TS1234: message
                 match = re.match(r"(.+?)\(\d+,\d+\):\s+error\s+", line)
@@ -494,13 +527,37 @@ class TypeScriptAnalyzer(BaseAnalyzer):
                     fpath = match.group(1)
                     for p in paths:
                         if str(p).endswith(fpath) or fpath.endswith(str(p.name)):
-                            per_file[str(p)] = (per_file.get(str(p)) or 0) + 1
+                            current = per_file.get(str(p))
+                            per_file[str(p)] = (current or 0) + 1
                             break
             return per_file
         except subprocess.TimeoutExpired:
             return None
         except Exception:
             return None
+
+    def _tsc_list_files(self) -> set[str]:
+        """Get the set of resolved file paths that tsc covers via tsconfig."""
+        try:
+            cmd = ["tsc", "--listFiles", "--noEmit", "--pretty", "false"]
+            tsconfig = Path(self.project_root) / "tsconfig.json"  # type: ignore[arg-type]
+            cmd.extend(["--project", str(tsconfig)])
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                cwd=str(self.project_root),
+            )
+            if result.returncode in (0, 1):
+                return {
+                    line.strip()
+                    for line in result.stdout.splitlines()
+                    if line.strip() and not line.strip().startswith("error")
+                }
+        except Exception:
+            pass
+        return set()
 
     def _run_escomplex(self, path: Path) -> dict | None:
         """Run escomplex on a single file, return complexity metrics."""

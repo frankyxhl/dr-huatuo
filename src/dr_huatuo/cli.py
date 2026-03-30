@@ -343,9 +343,9 @@ def cmd_check(args: argparse.Namespace) -> int:
     # Create one analyzer per language, batch analyze
     for _lang_name, lang_files in by_analyzer.items():
         try:
-            project_root = Path(args.path).resolve()
-            if project_root.is_file():
-                project_root = project_root.parent
+            # Use first file's directory so config discovery walks up from
+            # the actual source location, not the scan root.
+            project_root = lang_files[0].parent
             analyzer = create_analyzer(lang_files[0], project_root=project_root)
         except ToolNotFoundError as e:
             console.print(f"[yellow]Skipping {_lang_name} files:[/yellow] {e}")

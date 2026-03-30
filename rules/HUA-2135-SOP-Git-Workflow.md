@@ -53,10 +53,11 @@ Direct commits to main bypass review gates and make it hard to revert individual
 
 6. **CI must pass** — wait for GitHub Actions (test + lint + format) to go green
 
-7. **Merge** — a PR may be merged only when:
+7. **Merge** — a PR may be merged only when **all** of the following are true:
    - Review scores meet the Codex+Gemini ≥ 9 threshold
-   - All required CI status checks are green
-   - The branch is up to date with main
+   - All required CI status checks are green (test + lint + format)
+   - The branch is up to date with main (no conflicts)
+   - **The user has explicitly approved the merge** — agent must never run `gh pr merge` on its own
    ```bash
    gh pr merge <number> --squash
    ```
@@ -73,6 +74,7 @@ Direct commits to main bypass review gates and make it hard to revert individual
 
 - **No direct commits to main** — all changes go through PRs
 - **No auto-push** — agent never pushes without explicit user approval
+- **No auto-merge** — agent never merges PRs without explicit user approval
 - **CI must pass before merge** — no merging red PRs
 - **One PR per logical change** — don't bundle unrelated changes
 - **PR title under 70 chars** — details go in the body
@@ -93,3 +95,4 @@ Emergency hotfixes may bypass the feature-branch requirement only for COR-1101 e
 |------|--------|----|
 | 2026-03-23 | Initial version | Frank + Claude Code |
 | 2026-03-23 | R1 revision: add emergency exception section, explicit merge criteria, expand When to Use scope, cite SOP IDs in Step 2, add branch naming conventions (hotfix/docs), squash merge as default, add remote branch deletion to cleanup | Claude Code |
+| 2026-03-30 | Add "No auto-merge" rule: agent must never merge PRs without explicit user approval | Claude Code |
