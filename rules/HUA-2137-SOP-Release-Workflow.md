@@ -101,9 +101,9 @@ Wait for CI to pass. **Do not merge without user approval** (HUA-2135 Rules).
 
 ### 8. Merge the release PR
 
-After user approval:
+After user approval, enable auto-merge (CI pass triggers merge):
 ```bash
-gh pr merge <number> --squash
+gh pr merge <number> --auto --squash
 ```
 
 ### 9. Create GitHub Release
