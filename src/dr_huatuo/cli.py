@@ -8,6 +8,7 @@ Subcommands:
 
 import argparse
 import importlib.metadata
+import os
 import subprocess
 import sys
 from collections import defaultdict
@@ -408,6 +409,12 @@ def cmd_report(args: argparse.Namespace) -> int:
 
 def cmd_version(_args: argparse.Namespace) -> int:
     """Show huatuo version and tool versions."""
+    # Ensure venv/pipx bin dir is on PATH so tools are found
+    bin_dir = str(Path(sys.executable).parent)
+    path = os.environ.get("PATH", "")
+    if bin_dir not in path.split(os.pathsep):
+        os.environ["PATH"] = bin_dir + os.pathsep + path
+
     try:
         version = importlib.metadata.version("dr-huatuo")
     except importlib.metadata.PackageNotFoundError:
