@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dr-huatuo"
-version = "0.5.0"
+version = "0.5.1"
 description = "Code quality diagnosis toolkit — 5-dimension maintainability profiling for Python and TypeScript"
 readme = "README.md"
 license = "MIT"
